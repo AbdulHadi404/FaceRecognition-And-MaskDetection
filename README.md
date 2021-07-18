@@ -34,7 +34,7 @@
 LBPH, Fisher and Eigen Faces for Face Recognition and Custom HAAR-Cascade for Mask Detection.
 It also uploads data to MongoDb for Both RFID/Smart Card and Face Attendance.
 
-### To use it 
+### How it works
 - The "Collect-Image" will take in 10 pictures of the subject.
 - The "Model Train" will train those collected images to identify a subject.
 - The "Recognize-Detection" opens up both the Front and Exit cameras.
