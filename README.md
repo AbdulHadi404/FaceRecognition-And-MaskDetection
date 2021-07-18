@@ -21,7 +21,7 @@
 - glob
 - tkinter
 
-## Face-Recognition/Mask-Detection GUI
+## Application Interface
 <tr>
     <td align="center">
        <a href="https://www.flickr.com/photos/193485149@N02/51320450180/in/dateposted-public/" target="_blank" title="LogIn">
