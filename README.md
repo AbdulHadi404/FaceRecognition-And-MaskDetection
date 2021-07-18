@@ -1,4 +1,4 @@
-# SEI-FaceRecognition-And-MaskDetection
+# FaceRecognition-And-MaskDetection
  This is the 1st Module of my FYP.
  
  ## Module List
