@@ -21,7 +21,7 @@
 - glob
 - tkinter
 
-### Face Recognition/Mask Detection GUI
+## Face-Recognition/Mask-Detection GUI
 <tr>
     <td align="center">
        <a href="https://www.flickr.com/photos/193485149@N02/51320450180/in/dateposted-public/" target="_blank" title="LogIn">
@@ -29,3 +29,6 @@
       </a>
     </td>
    </tr>
+
+## Wroking
+LBPH, Fisher and Eigen Faces for Face Recognition and Custom HAAR-Cascade for Mask Detection.
