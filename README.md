@@ -21,16 +21,11 @@
 - glob
 - tkinter
 
-<table>
-  <tr>
+### Face Recognition/Mask Detection GUI
+<tr>
     <td align="center">
        <a href="https://www.flickr.com/photos/193485149@N02/51320450180/in/dateposted-public/" target="_blank" title="LogIn">
       <img src="https://live.staticflickr.com/65535/51320450180_5e11fe4252_z.jpg" alt="LogIn">
       </a>
-      <br />
-      <em>Face Recognition/Mask Detection GUI</em>
     </td>
    </tr>
- <br />
- </tr>
- </table>
