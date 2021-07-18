@@ -32,4 +32,4 @@
 
 ## Wroking
 LBPH, Fisher and Eigen Faces for Face Recognition and Custom HAAR-Cascade for Mask Detection.
-It also uploads data to MongoDb for Both RFID and Face Attendance.
+It also uploads data to MongoDb for Both RFID/Smart Card and Face Attendance.
