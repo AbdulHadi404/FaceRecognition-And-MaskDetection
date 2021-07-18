@@ -17,13 +17,11 @@ class MongoDB(object):
         self.collectionName = collectionName
 
         #self.client = MongoClient("localhost", 27017, maxPoolSize=50)
-        self.client = MongoClient("mongodb+srv://admin:[]assword@cluster0.w2yj3.mongodb.net/myFirstDatabase?retryWrites=true&w=majority", 27017, maxPoolSize=50)
+        self.client = MongoClient("", 27017, maxPoolSize=50) #Insert MongoDb connection string in """
 
         self.DB = self.client[self.dBName]
         self.collection = self.DB[self.collectionName]
 
-#client = pymongo.MongoClient("mongodb+srv://admin:[]assword@cluster0.w2yj3.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
-#db = client.test
 
     def InsertData(self, path=r'attendanceresult\Attendance_Result_'+date+'.csv'):
         """
