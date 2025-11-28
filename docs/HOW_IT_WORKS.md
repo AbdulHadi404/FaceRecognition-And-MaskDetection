@@ -51,7 +51,7 @@ John Doe is a new student who needs to be registered in the system. You need to 
 
 ### Behind the Scenes
 
-- **Face Detection**: Uses `xml/frontal_face.xml` (Haar Cascade) to detect faces
+- **Face Detection**: Uses `resources/xml/frontal_face.xml` (Haar Cascade) to detect faces
 - **Image Normalization**: All images are processed to ensure consistency
 - **Storage**: Images saved in `members/john doe/` directory
 
@@ -79,11 +79,13 @@ Now that John's images are collected, you need to train the system to recognize 
    - Assigns numeric labels: John=0, Jane=1, Bob=2
    - Creates a mapping: `{0: "john doe", 1: "jane smith", 2: "bob wilson"}`
 
-4. **The system trains three recognition algorithms**:
+4. **The system trains recognition algorithms**:
 
-   - **EigenFace**: Uses Principal Component Analysis (PCA)
-   - **FisherFace**: Uses Linear Discriminant Analysis (LDA)
-   - **LBPH**: Uses Local Binary Patterns Histograms (most robust)
+   - **EigenFace**: Uses Principal Component Analysis (PCA) - works with 1+ people
+   - **FisherFace**: Uses Linear Discriminant Analysis (LDA) - requires 2+ people (skipped if only 1 person)
+   - **LBPH**: Uses Local Binary Patterns Histograms (most robust) - works with 1+ people
+   
+   **Note**: If only one person is in the system, FisherFace training is automatically skipped since it requires at least 2 classes (people) to function. EigenFace and LBPH will train successfully with just one person.
 
 5. **Training completes** and you see:
 
@@ -283,11 +285,13 @@ At the end of the day, you want to see a complete report of who came in, when th
 - Improves recognition accuracy
 - More training data = better model performance
 
-### Why Three Algorithms?
+### Recognition Algorithms
 
-- **EigenFace**: Fast, good for controlled environments
-- **FisherFace**: Better at handling variations
-- **LBPH**: Most robust, handles lighting/angle changes best (used in production)
+- **EigenFace**: Fast, good for controlled environments (works with 1+ people)
+- **FisherFace**: Better at handling variations (requires 2+ people)
+- **LBPH**: Most robust, handles lighting/angle changes best (used in production, works with 1+ people)
+
+**Note**: FisherFace requires at least 2 people in the dataset. If only one person is registered, the system will automatically skip FisherFace training and only train EigenFace and LBPH.
 
 ### Confidence Thresholds
 
@@ -297,15 +301,15 @@ At the end of the day, you want to see a complete report of who came in, when th
 
 ### Mask Detection
 
-- Uses a separate Haar Cascade classifier (`mask_cascade.xml`)
+- Uses a separate Haar Cascade classifier (`resources/xml/mask_cascade.xml`)
 - Detects if a person is wearing a face mask
 - Only tracked at entry (not exit)
 
-### Dual Camera System
+### Camera System
 
-- **Camera 0 (Entry)**: Tracks when people arrive + mask status
-- **Camera 1 (Exit)**: Tracks when people leave
-- Both run simultaneously for real-time tracking
+- **Camera 0**: Default webcam for attendance tracking
+- Tracks when people arrive + mask status
+- Real-time face recognition and attendance logging
 
 ---
 
@@ -347,7 +351,17 @@ Final Report
 
 ```
 FaceRecognition-And-MaskDetection/
-├── members/
+├── src/                        # Source code modules
+│   ├── collect_images.py
+│   ├── train_models.py
+│   ├── face_recognition.py
+│   └── consolidate_attendance.py
+├── resources/                  # Static resources
+│   ├── xml/
+│   │   ├── frontal_face.xml
+│   │   └── mask_cascade.xml
+│   └── images/
+├── members/                    # Runtime data (created automatically)
 │   ├── john doe/
 │   │   ├── 1.jpg
 │   │   ├── 2.jpg
@@ -360,9 +374,10 @@ FaceRecognition-And-MaskDetection/
 │   └── Attendance_john doe-2024-01-15_17-00-00.csv
 ├── attendance_results/
 │   └── Attendance_Result_2024-01-15.csv
-└── xml/
-    ├── frontal_face.xml (face detection)
-    └── mask_cascade.xml (mask detection)
+└── resources/
+    └── xml/
+        ├── frontal_face.xml (face detection)
+        └── mask_cascade.xml (mask detection)
 ```
 
 ---

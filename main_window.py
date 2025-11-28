@@ -6,10 +6,9 @@ This is the main entry point for the Face Recognition and Mask Detection applica
 It provides a graphical user interface with buttons to access all system features.
 
 Features:
-- Enter New Student: Collect face images for training
+- Enter New Person: Collect face images for training
 - Train Model: Train face recognition models
-- Face Attendance & Mask Detection: Real-time attendance tracking
-- Save Face Attendance File: Consolidate attendance records
+- Face Recognition & Mask Detection: Real-time face recognition and mask detection
 """
 
 import sys
@@ -117,44 +116,44 @@ def monitor_process_completion(process, success_message, error_message=None):
 # ============================================================================
 
 def collect():
-    """Launch the image collection module to capture student face images."""
-    # Get student name from GUI dialog
-    student_name = simpledialog.askstring(
-        "Enter Student Name",
-        "Please enter the student's name:",
+    """Launch the image collection module to capture face images."""
+    # Get person name from GUI dialog
+    person_name = simpledialog.askstring(
+        "Enter Person Name",
+        "Please enter the person's name:",
         parent=root
     )
     
-    if student_name is None or student_name.strip() == "":
-        messagebox.showwarning("No Name Entered", "Please enter a valid student name.")
+    if person_name is None or person_name.strip() == "":
+        messagebox.showwarning("No Name Entered", "Please enter a valid name.")
         update_status("Operation cancelled", WARNING_COLOR)
         return
     
-    student_name = student_name.strip()
+    person_name = person_name.strip()
     
-    # Check if student already exists
-    folder = f"members/{student_name.lower()}"
+    # Check if person already exists
+    folder = f"members/{person_name.lower()}"
     if os.path.exists(folder):
         response = messagebox.askyesno(
-            "Student Already Exists",
-            f"Student '{student_name}' already exists.\n\nDo you want to add more images?",
+            "Person Already Exists",
+            f"'{person_name}' already exists.\n\nDo you want to add more images?",
             parent=root
         )
         if not response:
             update_status("Operation cancelled", WARNING_COLOR)
             return
     
-    update_status(f"Starting image collection for {student_name}...", ACCENT_COLOR)
+    update_status(f"Starting image collection for {person_name}...", ACCENT_COLOR)
     
-    # Launch collection script with student name as argument
+    # Launch collection script with person name as argument
     try:
-        process = subprocess.Popen(['python', 'src/collect_images.py', student_name])
-        update_status(f"Collecting images for {student_name}... Camera window opening...", ACCENT_COLOR)
+        process = subprocess.Popen(['python', 'src/collect_images.py', person_name])
+        update_status(f"Collecting images for {person_name}... Camera window opening...", ACCENT_COLOR)
         # Monitor process completion
         monitor_process_completion(
             process, 
-            f"✓ Image collection completed for {student_name}",
-            f"Image collection failed for {student_name}"
+            f"✓ Image collection completed for {person_name}",
+            f"Image collection failed for {person_name}"
         )
     except Exception as e:
         messagebox.showerror("Error", f"Failed to start image collection:\n{str(e)}", parent=root)
@@ -168,8 +167,8 @@ def train():
     if not os.path.exists("members"):
         messagebox.showwarning(
             "No Data Found",
-            "No student images found!\n\n"
-            "Please collect images first using 'Enter New Student'.",
+            "No face images found!\n\n"
+            "Please collect images first using 'Enter New Person'.",
             parent=root
         )
         update_status("No data to train", WARNING_COLOR)
@@ -179,14 +178,14 @@ def train():
     if len(members) == 0:
         messagebox.showwarning(
             "No Data Found",
-            "No student images found!\n\n"
-            "Please collect images first using 'Enter New Student'.",
+            "No face images found!\n\n"
+            "Please collect images first using 'Enter New Person'.",
             parent=root
         )
         update_status("No data to train", WARNING_COLOR)
         return
     
-    update_status(f"Training models for {len(members)} student(s)... Please wait.", ACCENT_COLOR)
+    update_status(f"Training models for {len(members)} person(s)... Please wait.", ACCENT_COLOR)
     
     try:
         process = subprocess.Popen(['python', 'src/train_models.py'])
@@ -209,9 +208,9 @@ def recognize():
     if not os.path.exists("members"):
         messagebox.showwarning(
             "No Training Data",
-            "No student data found!\n\n"
+            "No face data found!\n\n"
             "Please:\n"
-            "1. Collect images (Enter New Student)\n"
+            "1. Collect images (Enter New Person)\n"
             "2. Train models (Train Model)\n\n"
             "Then try again.",
             parent=root
@@ -232,54 +231,6 @@ def recognize():
     except Exception as e:
         messagebox.showerror("Error", f"Failed to start recognition:\n{str(e)}", parent=root)
         update_status("Error starting recognition", WARNING_COLOR)
-
-
-def consolidate():
-    """Launch the attendance consolidation module to merge and save records."""
-    # Check if attendance files exist
-    has_attendance = os.path.exists("attendance_in") and len(os.listdir("attendance_in")) > 0
-    
-    if not has_attendance:
-        messagebox.showwarning(
-            "No Attendance Data",
-            "No attendance records found!\n\n"
-            "Please run 'Face Attendance & Mask Detection' first to generate records.",
-            parent=root
-        )
-        update_status("No attendance data to consolidate", WARNING_COLOR)
-        return
-    
-    # Show confirmation
-    attendance_count = len(os.listdir("attendance_in"))
-    
-    response = messagebox.askyesno(
-        "Consolidate Attendance",
-        f"Ready to consolidate attendance records.\n\n"
-        f"Found {attendance_count} attendance record(s)\n\n"
-        f"This will process all records and generate a summary report.\n\n"
-        f"Continue?",
-        parent=root
-    )
-    
-    if not response:
-        update_status("Consolidation cancelled", WARNING_COLOR)
-        return
-    
-    update_status("Consolidating attendance records...", ACCENT_COLOR)
-    
-    try:
-        process = subprocess.Popen(['python', 'src/consolidate_attendance.py'])
-        update_status("Consolidation in progress...", ACCENT_COLOR)
-        # Monitor process completion
-        monitor_process_completion(
-            process,
-            "✓ Attendance consolidation completed",
-            "Attendance consolidation failed"
-        )
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to start consolidation:\n{str(e)}", parent=root)
-        update_status("Error starting consolidation", WARNING_COLOR)
-        reset_status_after_delay(3)
 
 
 # ============================================================================
@@ -305,7 +256,7 @@ title_label.pack()
 
 subtitle_label = Label(
     title_frame,
-    text="Attendance Management System",
+    text="Real-time Face Recognition & Mask Detection",
     font=('Helvetica', 12),
     bg=BG_COLOR,
     fg="#BDC3C7"
@@ -343,7 +294,7 @@ button_style = {
 # Create menu buttons
 button_collect = Button(
     menu_frame,
-    text="01  Enter New Student",
+    text="01  Enter New Person",
     command=collect,
     **button_style
 )
@@ -359,19 +310,11 @@ button_train.pack(pady=8, padx=30)
 
 button_recognize = Button(
     menu_frame,
-    text="03  Face Attendance & Mask Detection",
+    text="03  Face Recognition & Mask Detection",
     command=recognize,
     **button_style
 )
 button_recognize.pack(pady=8, padx=30)
-
-button_consolidate = Button(
-    menu_frame,
-    text="04  Save Face Attendance File",
-    command=consolidate,
-    **button_style
-)
-button_consolidate.pack(pady=8, padx=30)
 
 
 # ============================================================================
@@ -387,7 +330,7 @@ def on_leave(button):
     button.config(bg=BUTTON_COLOR)
 
 # Apply hover effects to all buttons
-for btn in [button_collect, button_train, button_recognize, button_consolidate]:
+for btn in [button_collect, button_train, button_recognize]:
     btn.bind("<Enter>", lambda e, b=btn: on_enter(b))
     btn.bind("<Leave>", lambda e, b=btn: on_leave(b))
 

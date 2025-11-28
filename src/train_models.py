@@ -320,28 +320,36 @@ if images is None:
     )
     sys.exit(1)
 
-# Train three different face recognition models
+# Check number of unique people
+num_people = len(set(labels))
+progress_messages.append(f"\nFound {num_people} person(s) in dataset...")
+
+# Train face recognition models
 progress_messages.append("\nTraining models...")
 
-# 1. EigenFace Recognizer (PCA-based)
+# 1. EigenFace Recognizer (PCA-based) - works with 1 or more people
 progress_messages.append("  - Training EigenFace model...")
 rec_eig = cv2.face.EigenFaceRecognizer_create()
 rec_eig.train(images, labels)
 progress_messages.append("    ✓ EigenFace trained")
 
-# 2. FisherFace Recognizer (LDA-based)
-progress_messages.append("  - Training FisherFace model...")
-rec_fisher = cv2.face.FisherFaceRecognizer_create()
-rec_fisher.train(images, labels)
-progress_messages.append("    ✓ FisherFace trained")
+# 2. FisherFace Recognizer (LDA-based) - requires at least 2 people
+if num_people >= 2:
+    progress_messages.append("  - Training FisherFace model...")
+    rec_fisher = cv2.face.FisherFaceRecognizer_create()
+    rec_fisher.train(images, labels)
+    progress_messages.append("    ✓ FisherFace trained")
+else:
+    progress_messages.append("  - Skipping FisherFace (requires at least 2 people)")
+    progress_messages.append("    ℹ FisherFace will be skipped in recognition")
 
-# 3. LBPH Recognizer (Local Binary Patterns - most robust)
+# 3. LBPH Recognizer (Local Binary Patterns - most robust) - works with 1 or more people
 progress_messages.append("  - Training LBPH model...")
 rec_lbph = cv2.face.LBPHFaceRecognizer_create()
 rec_lbph.train(images, labels)
 progress_messages.append("    ✓ LBPH trained")
 
-progress_messages.append("\n✓ All models trained successfully!")
+progress_messages.append("\n✓ All applicable models trained successfully!")
 progress_messages.append("\nNote: Models are trained in memory. They will be used in the detection module.")
 
 

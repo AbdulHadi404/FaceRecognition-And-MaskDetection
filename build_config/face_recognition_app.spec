@@ -22,7 +22,6 @@ a = Analysis(
         'src.collect_images',
         'src.train_models',
         'src.face_recognition',
-        'src.consolidate_attendance',
     ],
     hookspath=[],
     hooksconfig={},
