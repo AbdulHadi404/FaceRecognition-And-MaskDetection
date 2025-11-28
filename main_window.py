@@ -28,6 +28,18 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src
 from logger_setup import setup_logger
 logger = setup_logger('main_window')
 
+# Import camera configuration
+try:
+    from config.camera_config import get_camera_source, save_camera_config, load_camera_config
+    CAMERA_CONFIG_AVAILABLE = True
+except ImportError:
+    CAMERA_CONFIG_AVAILABLE = False
+    logger.warning("Camera configuration module not available")
+    def get_camera_source():
+        return 0
+    def save_camera_config(source):
+        pass
+
 logger.info("="*60)
 logger.info("Main Window Application Started")
 logger.info("="*60)
@@ -266,6 +278,71 @@ def recognize():
 
 
 # ============================================================================
+# CAMERA CONFIGURATION FUNCTIONS
+# ============================================================================
+
+def configure_ip_camera():
+    """Open dialog to configure IP camera URL."""
+    if not CAMERA_CONFIG_AVAILABLE:
+        messagebox.showerror("Error", "Camera configuration module not available", parent=root)
+        return
+    
+    # Get current IP camera URL if set
+    current_source = get_camera_source()
+    current_url = current_source if isinstance(current_source, str) else "http://192.168.1.8:8080/video"
+    
+    # Ask for IP camera URL
+    url = simpledialog.askstring(
+        "Configure IP Camera",
+        "Enter IP Camera URL:\n\nExample: http://192.168.1.8:8080/video\nOr: rtsp://192.168.1.8:8086/stream",
+        initialvalue=current_url,
+        parent=root
+    )
+    
+    if url:
+        url = url.strip()
+        if url.startswith("http://") or url.startswith("https://") or url.startswith("rtsp://"):
+            save_camera_config(url)
+            update_status(f"IP Camera configured: {url}", SUCCESS_COLOR)
+            # Update radio button state to IP camera mode
+            if hasattr(root, 'camera_mode_var'):
+                root.camera_mode_var.set("ip")
+            update_camera_status()
+            root.after(2000, lambda: update_status("Ready", TEXT_COLOR))
+        else:
+            messagebox.showerror("Invalid URL", "URL must start with http://, https://, or rtsp://", parent=root)
+
+def switch_camera_mode():
+    """Switch between webcam and IP camera based on radio button selection."""
+    if not CAMERA_CONFIG_AVAILABLE:
+        return
+    
+    if not hasattr(root, 'camera_mode_var'):
+        return
+    
+    mode = root.camera_mode_var.get()
+    
+    if mode == "webcam":
+        # Switch to local webcam (index 0)
+        save_camera_config(0)
+        update_status("Switched to local webcam", SUCCESS_COLOR)
+        update_camera_status()
+        root.after(2000, lambda: update_status("Ready", TEXT_COLOR))
+    elif mode == "ip":
+        # Switch to IP camera - use current config or prompt
+        current_source = get_camera_source()
+        if isinstance(current_source, str):
+            # Already configured
+            update_status(f"Using IP Camera: {current_source}", SUCCESS_COLOR)
+            update_camera_status()
+            root.after(2000, lambda: update_status("Ready", TEXT_COLOR))
+        else:
+            # Not configured, prompt user
+            configure_ip_camera()
+            update_camera_status()
+
+
+# ============================================================================
 # UI COMPONENTS
 # ============================================================================
 
@@ -294,6 +371,111 @@ subtitle_label = Label(
     fg="#BDC3C7"
 )
 subtitle_label.pack(pady=(5, 0))
+
+# Camera settings frame
+camera_frame = Frame(main_frame, bg=BG_COLOR)
+camera_frame.pack(pady=(0, 20))
+
+# Camera mode label
+camera_label = Label(
+    camera_frame,
+    text="Camera Source:",
+    font=('Helvetica', 10, 'bold'),
+    bg=BG_COLOR,
+    fg=TEXT_COLOR
+)
+camera_label.pack(side=LEFT, padx=(0, 10))
+
+# Camera mode variable
+root.camera_mode_var = StringVar(value="webcam")
+
+# Determine initial camera mode
+if CAMERA_CONFIG_AVAILABLE:
+    try:
+        current_source = get_camera_source()
+        if isinstance(current_source, str):
+            root.camera_mode_var.set("ip")
+    except:
+        pass
+
+# Webcam radio button
+webcam_radio = Radiobutton(
+    camera_frame,
+    text="Local Webcam",
+    variable=root.camera_mode_var,
+    value="webcam",
+    font=('Helvetica', 10),
+    bg=BG_COLOR,
+    fg=TEXT_COLOR,
+    selectcolor=FRAME_COLOR,
+    activebackground=BG_COLOR,
+    activeforeground=TEXT_COLOR,
+    command=switch_camera_mode
+)
+webcam_radio.pack(side=LEFT, padx=5)
+
+# IP Camera radio button
+ip_camera_radio = Radiobutton(
+    camera_frame,
+    text="IP Camera",
+    variable=root.camera_mode_var,
+    value="ip",
+    font=('Helvetica', 10),
+    bg=BG_COLOR,
+    fg=TEXT_COLOR,
+    selectcolor=FRAME_COLOR,
+    activebackground=BG_COLOR,
+    activeforeground=TEXT_COLOR,
+    command=switch_camera_mode
+)
+ip_camera_radio.pack(side=LEFT, padx=5)
+
+# Configure IP Camera button
+config_ip_btn = Button(
+    camera_frame,
+    text="Configure IP",
+    command=configure_ip_camera,
+    font=('Helvetica', 9),
+    bg=FRAME_COLOR,
+    fg=TEXT_COLOR,
+    activebackground="#2C3E50",
+    activeforeground=TEXT_COLOR,
+    relief=FLAT,
+    padx=10,
+    pady=2,
+    cursor='hand2'
+)
+config_ip_btn.pack(side=LEFT, padx=(15, 0))
+
+# Current camera status label
+camera_status_label = Label(
+    camera_frame,
+    text="",
+    font=('Helvetica', 9),
+    bg=BG_COLOR,
+    fg="#BDC3C7"
+)
+camera_status_label.pack(side=LEFT, padx=(10, 0))
+
+# Update camera status display
+def update_camera_status():
+    """Update the camera status label."""
+    if CAMERA_CONFIG_AVAILABLE:
+        try:
+            current_source = get_camera_source()
+            if isinstance(current_source, str):
+                # Show shortened URL
+                display_url = current_source if len(current_source) < 40 else current_source[:37] + "..."
+                camera_status_label.config(text=f"[{display_url}]")
+            else:
+                camera_status_label.config(text=f"[Webcam {current_source}]")
+        except:
+            camera_status_label.config(text="")
+    else:
+        camera_status_label.config(text="[Not Available]")
+
+# Initial status update
+update_camera_status()
 
 # Menu frame with styling
 menu_frame = Frame(main_frame, bg=FRAME_COLOR, relief=RAISED, bd=2)

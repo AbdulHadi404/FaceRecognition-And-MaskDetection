@@ -120,20 +120,42 @@ class VideoCamera:
     Handles video capture from webcam.
     """
     
-    def __init__(self, index=0):
+    def __init__(self, source=None):
         """
         Initialize video camera.
         
         Args:
-            index: Camera index (0 for default webcam)
+            source: Camera source - can be:
+                - Integer (0, 1, 2, etc.) for local webcam index
+                - URL string (rtsp://..., http://...) for IP camera
+                - None to use default from config file
         """
-        self.video = cv2.VideoCapture(index)
-        self.index = index
-        print(f"Camera opened: {self.video.isOpened()}")
+        # Import config module
+        try:
+            from config.camera_config import get_camera_source
+            if source is None:
+                source = get_camera_source()
+        except ImportError:
+            # Fallback if config module not available
+            if source is None:
+                source = 0
+        
+        self.source = source
+        self.video = cv2.VideoCapture(source)
+        
+        # Configure buffer size for IP cameras (reduce latency)
+        if isinstance(source, str):
+            # IP camera - set buffer size to 1 to reduce latency
+            self.video.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        
+        is_opened = self.video.isOpened()
+        source_display = source if isinstance(source, str) else f"index {source}"
+        print(f"Camera opened ({source_display}): {is_opened}")
     
     def __del__(self):
         """Release camera resources."""
-        self.video.release()
+        if hasattr(self, 'video'):
+            self.video.release()
     
     def get_frame(self, in_grayscale=False):
         """
@@ -143,9 +165,11 @@ class VideoCamera:
             in_grayscale: If True, convert frame to grayscale
             
         Returns:
-            Frame as numpy array
+            Frame as numpy array, or None if failed
         """
-        _, frame = self.video.read()
+        ret, frame = self.video.read()
+        if not ret or frame is None:
+            return None
         if in_grayscale:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         return frame
