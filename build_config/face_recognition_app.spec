@@ -1,0 +1,61 @@
+# -*- mode: python ; coding: utf-8 -*-
+
+block_cipher = None
+
+a = Analysis(
+    ['main_window.py'],
+    pathex=[],
+    binaries=[],
+    datas=[
+        ('resources/xml/frontal_face.xml', 'xml'),
+        ('resources/xml/mask_cascade.xml', 'xml'),
+        ('resources/images/img.jpg', 'images'),
+    ],
+    hiddenimports=[
+        'cv2',
+        'numpy',
+        'pandas',
+        'matplotlib',
+        'PIL',
+        'tkinter',
+        'src.gui_messages',
+        'src.collect_images',
+        'src.train_models',
+        'src.face_recognition',
+        'src.consolidate_attendance',
+    ],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
+    noarchive=False,
+)
+
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    [],
+    name='FaceRecognitionApp',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=False,  # No console window (GUI only)
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon=None,
+)
+
