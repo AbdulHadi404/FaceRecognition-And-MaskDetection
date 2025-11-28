@@ -34,6 +34,16 @@ if src_dir not in sys.path:
 # Change working directory to project root to ensure relative paths work
 os.chdir(project_root)
 
+# Setup logging
+from logger_setup import setup_logger
+logger = setup_logger('train_models')
+
+logger.info("="*60)
+logger.info("Model Training Module Started")
+logger.info("="*60)
+logger.debug(f"Project root: {project_root}")
+logger.debug(f"Current working directory: {os.getcwd()}")
+
 from gui_messages import show_info, show_warning, show_error, show_progress
 
 
@@ -309,45 +319,77 @@ progress_messages.append("FACE RECOGNITION MODEL TRAINING")
 progress_messages.append("=" * 60)
 
 # Load dataset
+logger.info("Loading dataset...")
 progress_messages.append("\nLoading dataset...")
 images, labels, labels_dic = collect_dataset()
 
 if images is None:
+    error_msg = "Could not load training data"
+    logger.error(error_msg)
+    logger.error("collect_dataset() returned None")
     show_error(
         "Training Failed",
         "Could not load training data.\n\n"
-        "Please collect images first using 'Enter New Student'."
+        "Please collect images first using 'Enter New Person'."
     )
     sys.exit(1)
+
+logger.info(f"Loaded {len(images)} images for {len(set(labels))} person(s)")
 
 # Check number of unique people
 num_people = len(set(labels))
 progress_messages.append(f"\nFound {num_people} person(s) in dataset...")
 
 # Train face recognition models
+logger.info("Starting model training...")
 progress_messages.append("\nTraining models...")
 
 # 1. EigenFace Recognizer (PCA-based) - works with 1 or more people
+logger.info("Training EigenFace model...")
 progress_messages.append("  - Training EigenFace model...")
-rec_eig = cv2.face.EigenFaceRecognizer_create()
-rec_eig.train(images, labels)
-progress_messages.append("    ✓ EigenFace trained")
+try:
+    rec_eig = cv2.face.EigenFaceRecognizer_create()
+    rec_eig.train(images, labels)
+    logger.info("EigenFace model trained successfully")
+    progress_messages.append("    ✓ EigenFace trained")
+except Exception as e:
+    error_msg = f"Failed to train EigenFace model: {e}"
+    logger.exception(error_msg)
+    progress_messages.append(f"    ✗ EigenFace training failed: {e}")
+    raise
 
 # 2. FisherFace Recognizer (LDA-based) - requires at least 2 people
 if num_people >= 2:
+    logger.info("Training FisherFace model...")
     progress_messages.append("  - Training FisherFace model...")
-    rec_fisher = cv2.face.FisherFaceRecognizer_create()
-    rec_fisher.train(images, labels)
-    progress_messages.append("    ✓ FisherFace trained")
+    try:
+        rec_fisher = cv2.face.FisherFaceRecognizer_create()
+        rec_fisher.train(images, labels)
+        logger.info("FisherFace model trained successfully")
+        progress_messages.append("    ✓ FisherFace trained")
+    except Exception as e:
+        error_msg = f"Failed to train FisherFace model: {e}"
+        logger.exception(error_msg)
+        progress_messages.append(f"    ✗ FisherFace training failed: {e}")
+        raise
 else:
+    logger.info(f"Skipping FisherFace (requires at least 2 people, found {num_people})")
     progress_messages.append("  - Skipping FisherFace (requires at least 2 people)")
     progress_messages.append("    ℹ FisherFace will be skipped in recognition")
 
 # 3. LBPH Recognizer (Local Binary Patterns - most robust) - works with 1 or more people
+logger.info("Training LBPH model...")
 progress_messages.append("  - Training LBPH model...")
-rec_lbph = cv2.face.LBPHFaceRecognizer_create()
-rec_lbph.train(images, labels)
-progress_messages.append("    ✓ LBPH trained")
+try:
+    rec_lbph = cv2.face.LBPHFaceRecognizer_create()
+    rec_lbph.train(images, labels)
+    logger.info("LBPH model trained successfully")
+    progress_messages.append("    ✓ LBPH trained")
+except Exception as e:
+    error_msg = f"Failed to train LBPH model: {e}"
+    logger.exception(error_msg)
+    progress_messages.append(f"    ✗ LBPH training failed: {e}")
+    raise
 
 progress_messages.append("\n✓ All applicable models trained successfully!")
 progress_messages.append("\nNote: Models are trained in memory. They will be used in the detection module.")

@@ -22,6 +22,8 @@ a = Analysis(
         'src.collect_images',
         'src.train_models',
         'src.face_recognition',
+        'src.logger_setup',
+        'logging',
     ],
     hookspath=[],
     hooksconfig={},

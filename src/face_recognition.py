@@ -50,6 +50,16 @@ if src_dir not in sys.path:
 # Change working directory to project root to ensure relative paths work
 os.chdir(project_root)
 
+# Setup logging
+from logger_setup import setup_logger
+logger = setup_logger('face_recognition')
+
+logger.info("="*60)
+logger.info("Face Recognition Module Started")
+logger.info("="*60)
+logger.debug(f"Project root: {project_root}")
+logger.debug(f"Current working directory: {os.getcwd()}")
+
 from gui_messages import show_info, show_warning, show_error
 
 
@@ -70,11 +80,17 @@ def resource_path(relative_path):
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
+        logger.debug(f"Running in PyInstaller mode, base_path: {base_path}")
     except Exception:
         # Running in development mode - use project root
         base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        logger.debug(f"Running in development mode, base_path: {base_path}")
     
-    return os.path.join(base_path, relative_path)
+    full_path = os.path.join(base_path, relative_path)
+    logger.debug(f"resource_path: '{relative_path}' -> '{full_path}'")
+    logger.debug(f"Path exists: {os.path.exists(full_path)}")
+    
+    return full_path
 
 
 # ============================================================================
@@ -348,38 +364,82 @@ def collect_dataset():
 # ============================================================================
 
 # Load dataset and train models
+logger.info("Loading dataset and training models...")
 images, labels, labels_dic = collect_dataset()
 
 if images is None or len(images) == 0:
+    error_msg = "No training data found"
+    logger.error(error_msg)
+    logger.error("Dataset loading returned None or empty")
     show_error(
         "No Training Data",
         "No training data found!\n\n"
         "Please:\n"
-        "1. Collect images (Enter New Student)\n"
+        "1. Collect images (Enter New Person)\n"
         "2. Train models (Train Model)\n\n"
         "Then try again."
     )
     sys.exit(1)
 
+logger.info(f"Loaded {len(images)} images for {len(labels_dic)} person(s)")
+
 # Train LBPH model (used for recognition)
-rec_lbph = cv2.face.LBPHFaceRecognizer_create()
-rec_lbph.train(images, labels)
+logger.info("Training LBPH model...")
+try:
+    rec_lbph = cv2.face.LBPHFaceRecognizer_create()
+    rec_lbph.train(images, labels)
+    logger.info("LBPH model trained successfully")
+except Exception as e:
+    error_msg = f"Failed to train LBPH model: {e}"
+    logger.exception(error_msg)
+    show_error("Training Error", f"Failed to train model:\n{str(e)}")
+    sys.exit(1)
 
 # Initialize detectors
+logger.info("Initializing face and mask detectors...")
 try:
-    detector = FaceDetector(resource_path("resources/xml/frontal_face.xml"))  # Face detector
-    detector_mask = cv2.CascadeClassifier(resource_path("resources/xml/mask_cascade.xml"))  # Mask detector
+    face_xml_path = resource_path("resources/xml/frontal_face.xml")
+    mask_xml_path = resource_path("resources/xml/mask_cascade.xml")
+    
+    logger.debug(f"Loading face detector from: {face_xml_path}")
+    detector = FaceDetector(face_xml_path)  # Face detector
+    
+    logger.debug(f"Loading mask detector from: {mask_xml_path}")
+    detector_mask = cv2.CascadeClassifier(mask_xml_path)  # Mask detector
+    
+    if detector_mask.empty():
+        raise Exception("Mask cascade classifier is empty - file may be invalid")
+    
+    logger.info("Detectors loaded successfully")
 except Exception as e:
+    error_msg = f"Failed to load detectors: {e}"
+    logger.exception(error_msg)
+    logger.error(f"Face XML path: {face_xml_path if 'face_xml_path' in locals() else 'N/A'}")
+    logger.error(f"Mask XML path: {mask_xml_path if 'mask_xml_path' in locals() else 'N/A'}")
     show_error("Initialization Error", f"Failed to load detectors:\n{str(e)}")
     sys.exit(1)
 
 # Initialize camera
+logger.info("Initializing camera...")
 try:
+    logger.debug(f"Attempting to open camera index 0")
+    cv2.startWindowThread()  # Start window thread
+    logger.debug("Started OpenCV window thread")
+    
     camera = VideoCamera(0)  # Default webcam
+    
     if not camera.video.isOpened():
+        error_msg = "Could not open camera"
+        logger.error(error_msg)
+        logger.error("Camera index 0 failed to open")
         show_error("Camera Error", "Could not open camera.\nPlease check your camera connection.")
         sys.exit(1)
+    
+    logger.info("Camera initialized successfully")
+    logger.debug(f"Camera properties - Width: {camera.video.get(cv2.CAP_PROP_FRAME_WIDTH)}, Height: {camera.video.get(cv2.CAP_PROP_FRAME_HEIGHT)}")
 except Exception as e:
+    error_msg = f"Failed to initialize camera: {e}"
+    logger.exception(error_msg)
     show_error("Camera Error", f"Failed to initialize camera:\n{str(e)}")
     sys.exit(1)
 
@@ -393,51 +453,60 @@ timeStamp = datetime.datetime.fromtimestamp(current_time).strftime('%H:%M:%S')
 # MAIN DETECTION LOOP
 # ============================================================================
 
-# Create output directory if it doesn't exist
-os.makedirs("attendance_in", exist_ok=True)
+# Create output directory if it doesn't exist (if needed)
+# Note: Removed attendance logging, but keeping directory creation in case needed later
+# os.makedirs("attendance_in", exist_ok=True)
+
+logger.info("Starting main detection loop...")
 
 while True:
-    # ========================================================================
-    # CAMERA PROCESSING (with mask detection)
-    # ========================================================================
-    
-    frame = camera.get_frame()
-    mask_detected = False
-    
-    # Detect masks
-    masks = detector_mask.detectMultiScale(
-        frame,
-        scaleFactor=MASK_SCALE_FACTOR,
-        minNeighbors=MASK_MIN_NEIGHBORS,
-        minSize=MASK_MIN_SIZE,
-        maxSize=MASK_MAX_SIZE,
-        flags=cv2.CASCADE_SCALE_IMAGE
-    )
-    
-    # Draw mask detection results
-    for (x, y, w, h) in masks:
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)  # Green box
-        cv2.putText(
-            frame, 
-            'Using Mask',
-            (x, y + h + 30), 
-            cv2.FONT_HERSHEY_PLAIN, 
-            1.5, 
-            (255, 255, 255), 
-            2
-        )
-        mask_detected = True
-    
-    # Detect faces
-    faces_coord = detector.detect(frame, biggest_only=False)  # Detect multiple faces
-    attendance_df = pd.DataFrame(columns=['Name', 'Date', 'Time', 'Mask'])
-    
-    if len(faces_coord) > 0:
-        # Normalize detected faces
-        faces = normalize_faces(frame, faces_coord)
+    try:
+        # ========================================================================
+        # CAMERA PROCESSING (with mask detection)
+        # ========================================================================
         
-        # Recognize each face
-        for i, face in enumerate(faces):
+        frame = camera.get_frame()
+        
+        if frame is None:
+            logger.warning("Failed to capture frame from camera")
+            continue
+            
+        mask_detected = False
+        
+        # Detect masks
+        masks = detector_mask.detectMultiScale(
+            frame,
+            scaleFactor=MASK_SCALE_FACTOR,
+            minNeighbors=MASK_MIN_NEIGHBORS,
+            minSize=MASK_MIN_SIZE,
+            maxSize=MASK_MAX_SIZE,
+            flags=cv2.CASCADE_SCALE_IMAGE
+        )
+        
+        # Draw mask detection results
+        for (x, y, w, h) in masks:
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)  # Green box
+            cv2.putText(
+                frame, 
+                'Using Mask',
+                (x, y + h + 30), 
+                cv2.FONT_HERSHEY_PLAIN, 
+                1.5, 
+                (255, 255, 255), 
+                2
+            )
+            mask_detected = True
+        
+        # Detect faces
+        faces_coord = detector.detect(frame, biggest_only=False)  # Detect multiple faces
+        
+        if len(faces_coord) > 0:
+            logger.debug(f"Detected {len(faces_coord)} face(s)")
+            # Normalize detected faces
+            faces = normalize_faces(frame, faces_coord)
+            
+            # Recognize each face
+            for i, face in enumerate(faces):
             collector = cv2.face.StandardCollector_create()
             rec_lbph.predict_collect(face, collector)
             confidence = collector.getMinDist()
@@ -460,7 +529,8 @@ while True:
                     1
                 )
             else:
-                # Recognized person - save attendance
+                # Recognized person
+                logger.debug(f"Recognized: {person_name.capitalize()} (confidence: {confidence:.2f}, mask: {mask_detected})")
                 cv2.putText(
                     frame,
                     person_name.capitalize(),
@@ -470,49 +540,48 @@ while True:
                     (102, 255, 0),  # Green color
                     1
                 )
-                
-                # Save attendance record
-                attendance_df.loc[len(attendance_df)] = [
-                    person_name,
-                    date,
-                    timeStamp,
-                    str(mask_detected)
-                ]
-                
-                # Create filename with timestamp
-                hour, minute, second = timeStamp.split(":")
-                filename = (f"attendance_in/Attendance_{person_name}-{date}_"
-                          f"{hour}-{minute}-{second}.csv")
-                attendance_df.to_csv(filename, index=False)
         
         # Draw rectangles around faces
-        draw_rectangle(frame, faces_coord)
+        if len(faces_coord) > 0:
+            draw_rectangle(frame, faces_coord)
     
-    # Add exit instruction
-    cv2.putText(
-        frame,
-        "ESC to exit",
-        (5, frame.shape[0] - 5),
-        cv2.FONT_HERSHEY_DUPLEX,
-        1,
-        (255, 255, 255),
-        1,
-        cv2.LINE_AA
-    )
-    
-    # Display camera feed
-    cv2.imshow("Face Recognition - Attendance", frame)
-    
-    # ========================================================================
-    # EXIT CONDITION
-    # ========================================================================
-    
-    # Check for ESC key press (ASCII code 27)
-    key = cv2.waitKey(33) & 0xFF
-    if key == 27:  # ESC key
-        print("\nExiting...")
-        cv2.destroyAllWindows()
-        break
+        # Add exit instruction
+        cv2.putText(
+            frame,
+            "ESC to exit",
+            (5, frame.shape[0] - 5),
+            cv2.FONT_HERSHEY_DUPLEX,
+            1,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA
+        )
+        
+        # Display camera feed
+        cv2.imshow("Face Recognition & Mask Detection", frame)
+        
+        # ========================================================================
+        # EXIT CONDITION
+        # ========================================================================
+        
+        # Check for ESC key press (ASCII code 27)
+        key = cv2.waitKey(33) & 0xFF
+        if key == 27:  # ESC key
+            logger.info("ESC key pressed - exiting detection loop")
+            print("\nExiting...")
+            cv2.destroyAllWindows()
+            break
+            
+    except Exception as e:
+        error_msg = f"Error in detection loop: {e}"
+        logger.exception(error_msg)
+        # Continue loop despite errors
+        continue
 
+logger.info("Detection loop ended - cleaning up")
 # Cleanup
-del camera
+try:
+    del camera
+    logger.info("Camera released")
+except:
+    pass

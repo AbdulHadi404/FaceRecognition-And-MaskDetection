@@ -98,7 +98,10 @@ dmypy.json
 
 # Temporary files
 *.tmp
-*.log
 *.bak
 *.swp
+
+# Log files
+logs/
+*.log
 

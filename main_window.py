@@ -23,6 +23,18 @@ import tkinter.messagebox as messagebox
 from tkinter import simpledialog
 from PIL import Image, ImageTk
 
+# Setup logging
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
+from logger_setup import setup_logger
+logger = setup_logger('main_window')
+
+logger.info("="*60)
+logger.info("Main Window Application Started")
+logger.info("="*60)
+logger.debug(f"Python executable: {sys.executable}")
+logger.debug(f"Current working directory: {os.getcwd()}")
+logger.debug(f"Running as executable: {getattr(sys, 'frozen', False)}")
+
 
 # ============================================================================
 # CONFIGURATION
@@ -147,7 +159,13 @@ def collect():
     
     # Launch collection script with person name as argument
     try:
-        process = subprocess.Popen(['python', 'src/collect_images.py', person_name])
+        logger.info(f"Launching image collection for: {person_name}")
+        script_path = os.path.join('src', 'collect_images.py')
+        logger.debug(f"Script path: {script_path}")
+        logger.debug(f"Script exists: {os.path.exists(script_path)}")
+        
+        process = subprocess.Popen(['python', script_path, person_name])
+        logger.info(f"Image collection subprocess started with PID: {process.pid}")
         update_status(f"Collecting images for {person_name}... Camera window opening...", ACCENT_COLOR)
         # Monitor process completion
         monitor_process_completion(
@@ -156,6 +174,8 @@ def collect():
             f"Image collection failed for {person_name}"
         )
     except Exception as e:
+        error_msg = f"Failed to start image collection: {e}"
+        logger.exception(error_msg)
         messagebox.showerror("Error", f"Failed to start image collection:\n{str(e)}", parent=root)
         update_status("Error starting image collection", WARNING_COLOR)
         reset_status_after_delay(3)
@@ -188,7 +208,12 @@ def train():
     update_status(f"Training models for {len(members)} person(s)... Please wait.", ACCENT_COLOR)
     
     try:
-        process = subprocess.Popen(['python', 'src/train_models.py'])
+        logger.info("Launching model training")
+        script_path = os.path.join('src', 'train_models.py')
+        logger.debug(f"Script path: {script_path}")
+        
+        process = subprocess.Popen(['python', script_path])
+        logger.info(f"Training subprocess started with PID: {process.pid}")
         update_status("Training in progress...", ACCENT_COLOR)
         # Monitor process completion
         monitor_process_completion(
@@ -221,7 +246,14 @@ def recognize():
     update_status("Starting face recognition system...", ACCENT_COLOR)
     
     try:
-        process = subprocess.Popen(['python', 'src/face_recognition.py'])
+        logger.info("Launching face recognition")
+        script_path = os.path.join('src', 'face_recognition.py')
+        logger.debug(f"Script path: {script_path}")
+        logger.debug(f"Script exists: {os.path.exists(script_path)}")
+        logger.debug(f"Members directory exists: {os.path.exists('members')}")
+        
+        process = subprocess.Popen(['python', script_path])
+        logger.info(f"Face recognition subprocess started with PID: {process.pid}")
         update_status("Face recognition active - Camera window opening...", SUCCESS_COLOR)
         monitor_process_completion(
             process,

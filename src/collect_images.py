@@ -33,6 +33,16 @@ if src_dir not in sys.path:
 # Change working directory to project root to ensure relative paths work
 os.chdir(project_root)
 
+# Setup logging
+from logger_setup import setup_logger
+logger = setup_logger('collect_images')
+
+logger.info("="*60)
+logger.info("Image Collection Module Started")
+logger.info("="*60)
+logger.debug(f"Project root: {project_root}")
+logger.debug(f"Current working directory: {os.getcwd()}")
+
 
 # ============================================================================
 # HELPER FUNCTIONS - RESOURCE PATH
@@ -51,11 +61,17 @@ def resource_path(relative_path):
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
+        logger.debug(f"Running in PyInstaller mode, base_path: {base_path}")
     except Exception:
         # Running in development mode - use project root
         base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        logger.debug(f"Running in development mode, base_path: {base_path}")
     
-    return os.path.join(base_path, relative_path)
+    full_path = os.path.join(base_path, relative_path)
+    logger.debug(f"resource_path: '{relative_path}' -> '{full_path}'")
+    logger.debug(f"Path exists: {os.path.exists(full_path)}")
+    
+    return full_path
 
 
 # ============================================================================
@@ -286,40 +302,68 @@ def draw_rectangle(image, coords):
 # Get student name from command line argument or prompt
 if len(sys.argv) > 1:
     student_name = sys.argv[1].strip()
+    logger.info(f"Received student name from command line: {student_name}")
 else:
+    logger.info("No command line argument, prompting for student name")
     student_name = input('Enter student name: ').strip()
 
 if not student_name:
-    print("Error: No student name provided.")
+    error_msg = "No student name provided"
+    logger.error(error_msg)
+    print(f"Error: {error_msg}.")
     sys.exit(1)
 
 student_name = student_name.lower()
 folder = f"members/{student_name}"
+
+logger.info(f"Starting image collection for: {student_name}")
+logger.debug(f"Output folder: {folder}")
 
 print(f"\n{'='*60}")
 print(f"IMAGE COLLECTION FOR: {student_name.upper()}")
 print(f"{'='*60}\n")
 
 # Initialize camera and face detector
+logger.info("Initializing camera...")
 print("Initializing camera...")
 try:
     cv2.startWindowThread()  # Start window thread for better performance
+    logger.debug("Started OpenCV window thread")
+    
+    logger.debug(f"Attempting to open camera index 0")
     webcam = VideoCamera(0)  # Use camera index 0 (default webcam)
+    
     if not webcam.video.isOpened():
-        print("ERROR: Could not open camera. Please check your camera connection.")
+        error_msg = "Could not open camera. Please check your camera connection."
+        logger.error(error_msg)
+        logger.error(f"Camera index 0 failed to open")
+        print(f"ERROR: {error_msg}")
         sys.exit(1)
+    
+    logger.info("Camera initialized successfully")
+    logger.debug(f"Camera properties - Width: {webcam.video.get(cv2.CAP_PROP_FRAME_WIDTH)}, Height: {webcam.video.get(cv2.CAP_PROP_FRAME_HEIGHT)}")
     print("✓ Camera initialized successfully")
 except Exception as e:
-    print(f"ERROR: Failed to initialize camera: {e}")
+    error_msg = f"Failed to initialize camera: {e}"
+    logger.exception(error_msg)
+    print(f"ERROR: {error_msg}")
     sys.exit(1)
 
+logger.info("Loading face detector...")
 print("Loading face detector...")
 try:
-    detector = FaceDetector(resource_path("resources/xml/frontal_face.xml"))
+    xml_path = resource_path("resources/xml/frontal_face.xml")
+    logger.debug(f"Loading face detector from: {xml_path}")
+    detector = FaceDetector(xml_path)
+    logger.info("Face detector loaded successfully")
     print("✓ Face detector loaded successfully")
 except Exception as e:
-    print(f"ERROR: Failed to load face detector: {e}")
-    del webcam
+    error_msg = f"Failed to load face detector: {e}"
+    logger.exception(error_msg)
+    logger.error(f"XML path attempted: {xml_path if 'xml_path' in locals() else 'N/A'}")
+    print(f"ERROR: {error_msg}")
+    if 'webcam' in locals():
+        del webcam
     sys.exit(1)
 
 # Check if folder already exists
@@ -354,29 +398,50 @@ print(f"  • Press 'Q' or close window to stop early")
 print(f"\nStarting collection...\n")
 
 # Test camera by showing a frame immediately to open window
+logger.info("Opening camera window...")
 print("Opening camera window...")
-test_frame = webcam.get_frame()
-if test_frame is None:
-    print("ERROR: Could not capture frame from camera")
-    del webcam
+try:
+    test_frame = webcam.get_frame()
+    if test_frame is None:
+        error_msg = "Could not capture frame from camera"
+        logger.error(error_msg)
+        print(f"ERROR: {error_msg}")
+        del webcam
+        sys.exit(1)
+    
+    logger.debug(f"Test frame captured - Shape: {test_frame.shape}")
+    
+    # Show initial frame to open window
+    cv2.imshow(window_name, test_frame)
+    cv2.waitKey(100)  # Brief wait to ensure window opens
+    logger.info("Camera window opened successfully")
+    print("✓ Camera window opened successfully")
+except Exception as e:
+    error_msg = f"Failed to open camera window: {e}"
+    logger.exception(error_msg)
+    print(f"ERROR: {error_msg}")
+    if 'webcam' in locals():
+        del webcam
     sys.exit(1)
-
-# Show initial frame to open window
-cv2.imshow(window_name, test_frame)
-cv2.waitKey(100)  # Brief wait to ensure window opens
-print("✓ Camera window opened successfully")
 
 # Main collection loop
 while counter <= NUM_IMAGES:
     # Get frame from camera
-    frame = webcam.get_frame()
-    
-    if frame is None:
-        print("ERROR: Failed to capture frame")
+    try:
+        frame = webcam.get_frame()
+        
+        if frame is None:
+            logger.warning(f"Failed to capture frame at iteration {counter}")
+            print("ERROR: Failed to capture frame")
+            break
+        
+        # Detect faces in frame
+        faces_coord = detector.detect(frame)
+        if len(faces_coord) > 0:
+            logger.debug(f"Face detected at iteration {counter}")
+    except Exception as e:
+        logger.exception(f"Error in main loop at iteration {counter}: {e}")
         break
-    
-    # Detect faces in frame
-    faces_coord = detector.detect(frame)
     
     # Capture image when face is detected and timer condition is met
     if len(faces_coord) > 0 and timer % CAPTURE_INTERVAL == 50:
@@ -385,10 +450,16 @@ while counter <= NUM_IMAGES:
         
         # Save the first detected face
         image_path = f"{folder}/{counter}.jpg"
-        cv2.imwrite(image_path, faces[0])
-        
-        print(f"✓ Image {counter}/{NUM_IMAGES} saved! ({image_path})")
-        counter += 1
+        try:
+            success = cv2.imwrite(image_path, faces[0])
+            if success:
+                logger.info(f"Image {counter}/{NUM_IMAGES} saved successfully: {image_path}")
+                print(f"✓ Image {counter}/{NUM_IMAGES} saved! ({image_path})")
+                counter += 1
+            else:
+                logger.error(f"Failed to save image {counter} to {image_path}")
+        except Exception as e:
+            logger.exception(f"Error saving image {counter}: {e}")
     
     # Draw rectangle around detected face
     draw_rectangle(frame, faces_coord)
