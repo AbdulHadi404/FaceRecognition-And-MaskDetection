@@ -507,39 +507,41 @@ while True:
             
             # Recognize each face
             for i, face in enumerate(faces):
-            collector = cv2.face.StandardCollector_create()
-            rec_lbph.predict_collect(face, collector)
-            confidence = collector.getMinDist()
-            predicted_label = collector.getMinLabel()
-            
-            person_name = labels_dic[predicted_label]
-            print(f"\nPerson: {person_name.capitalize()}, "
-                  f"Confidence: {round(confidence)}, Mask: {mask_detected}")
-            
-            # Check if confidence is below threshold (good match)
-            if confidence > LBPH_THRESHOLD:
-                # Unknown person (confidence too high)
-                cv2.putText(
-                    frame,
-                    "Unknown",
-                    (faces_coord[i][0], faces_coord[i][1] - 10),
-                    cv2.FONT_HERSHEY_DUPLEX,
-                    1.0,
-                    (66, 55, 245),  # Red color
-                    1
-                )
-            else:
-                # Recognized person
-                logger.debug(f"Recognized: {person_name.capitalize()} (confidence: {confidence:.2f}, mask: {mask_detected})")
-                cv2.putText(
-                    frame,
-                    person_name.capitalize(),
-                    (faces_coord[i][0], faces_coord[i][1] - 20),
-                    cv2.FONT_HERSHEY_DUPLEX,
-                    1.0,
-                    (102, 255, 0),  # Green color
-                    1
-                )
+                collector = cv2.face.StandardCollector_create()
+                rec_lbph.predict_collect(face, collector)
+                confidence = collector.getMinDist()
+                predicted_label = collector.getMinLabel()
+                
+                person_name = labels_dic[predicted_label]
+                logger.debug(f"Recognition attempt - Person: {person_name.capitalize()}, Confidence: {round(confidence)}, Mask: {mask_detected}")
+                print(f"\nPerson: {person_name.capitalize()}, "
+                      f"Confidence: {round(confidence)}, Mask: {mask_detected}")
+                
+                # Check if confidence is below threshold (good match)
+                if confidence > LBPH_THRESHOLD:
+                    # Unknown person (confidence too high)
+                    logger.debug(f"Unknown person - confidence {confidence} above threshold {LBPH_THRESHOLD}")
+                    cv2.putText(
+                        frame,
+                        "Unknown",
+                        (faces_coord[i][0], faces_coord[i][1] - 10),
+                        cv2.FONT_HERSHEY_DUPLEX,
+                        1.0,
+                        (66, 55, 245),  # Red color
+                        1
+                    )
+                else:
+                    # Recognized person
+                    logger.debug(f"Recognized: {person_name.capitalize()} (confidence: {confidence:.2f}, mask: {mask_detected})")
+                    cv2.putText(
+                        frame,
+                        person_name.capitalize(),
+                        (faces_coord[i][0], faces_coord[i][1] - 20),
+                        cv2.FONT_HERSHEY_DUPLEX,
+                        1.0,
+                        (102, 255, 0),  # Green color
+                        1
+                    )
         
         # Draw rectangles around faces
         if len(faces_coord) > 0:
