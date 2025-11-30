@@ -21,18 +21,158 @@ The Face Recognition & Mask Detection System is an automated solution that combi
 
 ### Core Components
 
-1. **Image Collection Module**: Captures and preprocesses face images
-2. **Model Training Module**: Trains multiple face recognition algorithms
-3. **Recognition Module**: Real-time face recognition and mask detection
-4. **Data Management Module**: Consolidates and processes recognition records
+1. **Image Collection Module** (`src/collect_images.py`): Captures and preprocesses face images from camera
+2. **Model Training Module** (`src/train_models.py`): Trains multiple face recognition algorithms (EigenFace, FisherFace, LBPH)
+3. **Recognition Module** (`src/face_recognition.py`): Real-time face recognition and mask detection using LBPH algorithm
+4. **GUI Module** (`main_window.py`): Main graphical user interface built with Tkinter
+5. **Configuration Module** (`config/camera_config.py`): Camera source configuration (local webcam or IP camera)
+6. **Logging Module** (`src/logger_setup.py`): Centralized logging system with file and console handlers
 
 ### Technology Stack
 
-- **OpenCV**: Computer vision library for image processing and face recognition
+- **OpenCV**: Computer vision library for image processing, face recognition, and video capture
 - **NumPy**: Numerical computations and array operations
-- **Pandas**: Data manipulation for recognition records
-- **Tkinter**: Graphical user interface
-- **Matplotlib**: Image visualization (for debugging)
+- **Tkinter**: Graphical user interface framework
+- **PIL (Pillow)**: Image processing for GUI background images
+- **Matplotlib**: Image visualization (for debugging, optional)
+- **Python Standard Library**: `logging`, `json`, `os`, `sys`, `subprocess`, `threading`, `datetime`
+
+---
+
+## Module Details
+
+### Main GUI Module (`main_window.py`)
+
+The main GUI application provides a user-friendly interface for all system operations.
+
+**Features:**
+
+- **Modern dark theme**: Professional color scheme with blue accents
+- **Three main buttons**:
+  1. "01 Enter New Person" - Launches image collection
+  2. "02 Train Model" - Launches model training
+  3. "03 Face Recognition & Mask Detection" - Launches recognition system
+- **Camera configuration**: Radio buttons to switch between local webcam and IP camera
+- **Status display**: Real-time status messages at the bottom of the window
+- **Process monitoring**: Tracks subprocess execution and updates status
+
+**Technical Details:**
+
+- Built with Tkinter
+- Uses subprocess to launch Python modules
+- Threading for non-blocking process monitoring
+- Background image support (optional)
+- Window size: 800×600 pixels (non-resizable)
+
+### Image Collection Module (`src/collect_images.py`)
+
+Collects face images for training the recognition system.
+
+**Workflow:**
+
+1. Prompts for person name (via GUI dialog or command line)
+2. Creates `members/{name}/` directory
+3. Opens camera (webcam or IP camera)
+4. Captures 10 images automatically when face is detected
+5. Processes each image: crop, grayscale, histogram equalization, resize
+6. Saves images as `1.jpg`, `2.jpg`, ..., `10.jpg`
+
+**Parameters:**
+
+- Images per person: 10
+- Capture interval: 700ms
+- Face crop: 20% from width edges
+- Output size: 100×100 pixels
+
+### Model Training Module (`src/train_models.py`)
+
+Trains three face recognition algorithms on collected images.
+
+**Algorithms:**
+
+1. **EigenFace** (PCA) - Always trained (works with 1+ people)
+2. **FisherFace** (LDA) - Only if 2+ people (requires multiple classes)
+3. **LBPH** - Always trained (works with 1+ people, most robust)
+
+**Workflow:**
+
+1. Loads all images from `members/` directory
+2. Assigns numeric labels to each person
+3. Trains each applicable algorithm
+4. Models stored in memory (not saved to disk)
+5. Shows progress window with training status
+
+**Note**: Only LBPH is used in recognition; EigenFace and FisherFace are trained but not used in the current implementation.
+
+### Face Recognition Module (`src/face_recognition.py`)
+
+Performs real-time face recognition and mask detection.
+
+**Workflow:**
+
+1. Loads training images and trains LBPH model
+2. Initializes face and mask detectors
+3. Opens camera feed
+4. Continuous loop:
+   - Detects masks (green box if found)
+   - Detects faces
+   - Recognizes faces using LBPH
+   - Displays results on video feed
+5. Exit on ESC key press
+
+**Features:**
+
+- Real-time video display with annotations
+- Multiple face detection support
+- Mask detection always active
+- Visual feedback: green box for recognized, red "Unknown" for unrecognized
+- Confidence threshold: 76
+
+### Configuration Module (`config/camera_config.py`)
+
+Manages camera source configuration.
+
+**Functions:**
+
+- `get_camera_source()`: Returns current camera source (int or URL string)
+- `save_camera_config(source)`: Saves camera configuration to JSON file
+- `load_camera_config()`: Loads configuration from JSON file
+
+**Configuration File**: `config/camera_settings.json`
+
+- Format: `{"source": 0}` or `{"source": "http://..."}`
+
+### Logging Module (`src/logger_setup.py`)
+
+Provides centralized logging for all modules.
+
+**Features:**
+
+- File logging: Detailed logs with timestamps, module name, level, filename, line number
+- Console logging: Simple format for real-time monitoring
+- Auto-rotation: New log file each day
+- PyInstaller support: Works in both dev and executable modes
+- Fallback mechanisms: If file logging fails, uses temp directory or console only
+
+**Log Files:**
+
+- Location: `logs/` directory
+- Naming: `{module_name}_{YYYYMMDD}.log`
+- Format: Text file with detailed information
+
+### GUI Messages Module (`src/gui_messages.py`)
+
+Provides GUI dialogs for modules to use instead of terminal output.
+
+**Functions:**
+
+- `show_info(title, message)`: Information dialog
+- `show_warning(title, message)`: Warning dialog
+- `show_error(title, message)`: Error dialog
+- `show_progress(title, messages)`: Progress window with scrollable text
+- `ask_yesno(title, message)`: Yes/No question dialog
+
+**Purpose**: Ensures all user interactions happen through GUI, not terminal.
 
 ---
 
@@ -334,7 +474,9 @@ Equalized: I_eq(x,y) = CDF(I(x,y)) × (L - 1)
 - Extracts face region from full image
 - Removes background and non-face areas
 - Focuses on facial features
-- Removes 20-30% from width edges to focus on face center
+- **Collection module**: Removes 20% from width edges (10% from each side)
+- **Recognition module**: Removes 30% from width edges (15% from each side)
+- Different percentages used to optimize for different purposes (collection vs. recognition)
 
 ---
 
@@ -343,16 +485,21 @@ Equalized: I_eq(x,y) = CDF(I(x,y)) × (L - 1)
 The complete preprocessing pipeline in this system:
 
 ```
-1. Face Detection → 2. Crop Face → 3. Grayscale → 4. Histogram Equalization → 5. Resize
+1. Face Detection → 2. Crop Face → 3. Grayscale (if needed) → 4. Histogram Equalization → 5. Resize
 ```
 
 **Why This Order?**
 
-- **Detection First**: Identifies face location
-- **Crop**: Removes irrelevant background
-- **Grayscale**: Reduces dimensions
-- **Equalization**: Improves contrast
-- **Resize**: Standardizes dimensions
+- **Detection First**: Identifies face location using Haar Cascade
+- **Crop**: Removes irrelevant background and focuses on face center
+- **Grayscale**: Reduces dimensions (only if input is color image)
+- **Equalization**: Improves contrast and normalizes lighting
+- **Resize**: Standardizes dimensions to 100×100 pixels
+
+**Interpolation Methods:**
+
+- **Upscaling** (image smaller than 100×100): `INTER_AREA` (better quality)
+- **Downscaling** (image larger than 100×100): `INTER_CUBIC` (smoother result)
 
 ---
 
@@ -469,10 +616,15 @@ maxSize = (150, 150)    # Upper limit for mask size
 
 ### Integration with Face Recognition
 
-- Mask detection runs alongside face detection
-- Only tracked at entry (not exit)
-- Visual indicator: Green box around detected mask
-- Status saved in recognition records
+- Mask detection runs alongside face detection (always active)
+- Visual indicator: Green box around detected mask with "Using Mask" text
+- Detection parameters:
+  - `scaleFactor`: 1.2
+  - `minNeighbors`: 5
+  - `minSize`: (100, 100)
+  - `maxSize`: (150, 150)
+- Mask detection is independent of face recognition (both can run simultaneously)
+- Mask status is displayed visually but not saved to files in current implementation
 
 ---
 
@@ -483,9 +635,10 @@ maxSize = (150, 150)    # Upper limit for mask size
 ```
 ┌─────────────────────────────────────────┐
 │         main_window.py (GUI)            │
-│     - User Interface                    │
+│     - Tkinter User Interface            │
 │     - Button Controls                   │
 │     - Status Display                    │
+│     - Camera Configuration              │
 └──────────────┬──────────────────────────┘
                │
     ┌──────────┼──────────┐
@@ -497,49 +650,58 @@ maxSize = (150, 150)    # Upper limit for mask size
 │_images │ │_models │ │recognition   │
 └────────┘ └────────┘ └──────────────┘
     │          │              │
+    │          │              │
     ▼          ▼              ▼
-┌────────────────────────────────────┐
-│   src/consolidate_records.py        │
-└────────────────────────────────────┘
+┌────────┐ ┌────────┐ ┌──────────────┐
+│ config/│ │ src/   │ │ src/         │
+│camera_ │ │logger_ │ │gui_messages  │
+│config  │ │setup   │ │              │
+└────────┘ └────────┘ └──────────────┘
 ```
 
 ### Data Flow
 
 ```
-User Input → GUI → Module Selection → Processing → Results → GUI Display
+User Input → GUI (main_window.py) → Module Selection → Subprocess Launch → Processing → Results → GUI Display
 ```
 
 ### File Organization
 
 ```
 FaceRecognition-And-MaskDetection/
+├── main_window.py              # Main GUI application entry point
+├── setup_ip_camera.py          # IP camera configuration helper
 ├── src/                        # Source code modules
-│   ├── collect_images.py
-│   ├── train_models.py
-│   ├── face_recognition.py
-│   ├── consolidate_records.py
-│   └── gui_messages.py
+│   ├── collect_images.py       # Image collection module
+│   ├── train_models.py         # Model training module
+│   ├── face_recognition.py     # Real-time recognition module
+│   ├── logger_setup.py         # Logging configuration
+│   ├── gui_messages.py          # GUI message helpers
+│   └── __init__.py
+├── config/                     # Configuration files
+│   ├── camera_config.py        # Camera source configuration
+│   ├── camera_settings.json    # Camera settings (auto-generated)
+│   └── __init__.py
 ├── resources/                  # Static resources
 │   ├── xml/
 │   │   ├── frontal_face.xml    # Face detection classifier
 │   │   └── mask_cascade.xml    # Mask detection classifier
 │   └── images/
-│       └── img.jpg             # GUI background
+│       └── img.jpg             # GUI background (optional)
 ├── docs/                       # Documentation
 │   ├── HOW_IT_WORKS.md
-│   └── TECHNICAL_DOCUMENTATION.md
-├── build_config/               # Build configuration
+│   ├── TECHNICAL_DOCUMENTATION.md
+│   └── presentation.pdf
+├── logs/                       # Log files (auto-generated)
+│   ├── collect_images_YYYYMMDD.log
+│   ├── train_models_YYYYMMDD.log
+│   ├── face_recognition_YYYYMMDD.log
+│   └── main_window_YYYYMMDD.log
+├── build_config/               # Build configuration (for PyInstaller)
 │   └── face_recognition_app.spec
-└── [Runtime directories - created automatically]
-    ├── members/
-    │   └── person_name/
-    │       └── 1.jpg, 2.jpg, ..., 10.jpg
-    ├── records_in/
-    │   └── Record_person-date_time.csv
-    ├── records_out/
-    │   └── Record_person-date_time.csv
-    └── recognition_results/
-        └── Recognition_Result_date.csv
+└── members/                    # Training data (auto-generated)
+    └── person_name/
+        └── 1.jpg, 2.jpg, ..., 10.jpg
 ```
 
 ---
@@ -549,22 +711,30 @@ FaceRecognition-And-MaskDetection/
 ### 1. Image Collection Pipeline
 
 ```
-Camera Feed
+Camera Feed (Webcam or IP Camera)
     ↓
-Frame Capture
+Frame Capture (VideoCamera.get_frame())
     ↓
-Face Detection (Haar Cascade)
+Face Detection (Haar Cascade - biggest_only=True)
     ↓
-Face Crop (remove 30% edges)
+Face Crop (remove 20% from width edges)
     ↓
-Grayscale Conversion
+Grayscale Conversion (if color image)
     ↓
-Histogram Equalization
+Histogram Equalization (cv2.equalizeHist)
     ↓
-Resize to 100×100
+Resize to 100×100 (INTER_AREA for upscale, INTER_CUBIC for downscale)
     ↓
-Save to members/name/
+Save to members/name/ (1.jpg, 2.jpg, ..., 10.jpg)
 ```
+
+**Collection Parameters:**
+
+- **Number of images**: 10 per person
+- **Capture interval**: 700 milliseconds between captures
+- **Face crop**: Removes 20% from width edges (10% from each side)
+- **Image format**: JPEG (.jpg)
+- **Image size**: 100×100 pixels (grayscale)
 
 ### 2. Training Pipeline
 
@@ -587,43 +757,65 @@ Train LBPH (Histogram)
 Store Models in Memory
 ```
 
+**Important Note**: While all three algorithms (EigenFace, FisherFace, LBPH) are trained during the training phase, **only LBPH is used for actual recognition** in the face recognition module. This is because LBPH provides the best balance of accuracy, speed, and robustness to real-world conditions (lighting, pose, expression variations). The other algorithms are trained for completeness and potential future use, but are not currently utilized in the recognition pipeline.
+
 ### 3. Recognition Pipeline
 
 ```
-Camera Frame
+Camera Frame (Webcam or IP Camera)
     ↓
-Face Detection (Haar Cascade)
+Mask Detection (Haar Cascade - always active)
     ↓
-Mask Detection (Haar Cascade) [Entry only]
+Face Detection (Haar Cascade - multiple faces)
     ↓
-Face Crop & Normalize
+Face Crop (remove 30% from width edges) & Normalize
     ↓
-LBPH Recognition
+LBPH Recognition (only algorithm used)
     ↓
-Confidence Check
-    ↓
-[If Recognized] → Save Record
+Confidence Check (threshold = 76)
     ↓
 Display Result on Frame
+    - Green box + name (if recognized)
+    - Red "Unknown" text (if confidence > threshold)
+    - Green box around mask (if detected)
 ```
 
-### 4. Data Consolidation Pipeline
+**Recognition Parameters:**
+
+- **Algorithm**: LBPH only (most robust)
+- **Threshold**: 76 (lower confidence = better match)
+- **Mask detection**: Always active (not just at entry)
+- **Face detection**: Multiple faces supported
+- **Face crop**: Removes 30% from width edges (15% from each side)
+- **Exit**: Press ESC key to stop
+
+### 4. Logging Pipeline
 
 ```
-Load CSV Files
+Module Execution
     ↓
-Parse Entry Records
+Logger Initialization (logger_setup.py)
     ↓
-Parse Exit Records
+Determine Log Directory (dev mode or PyInstaller)
     ↓
-Merge by Name (Left Join)
+Create Log File (module_name_YYYYMMDD.log)
     ↓
-Calculate Time Difference
+Dual Handlers:
+    - File Handler (DEBUG level, detailed format)
+    - Console Handler (INFO level, simple format)
     ↓
-Generate Report
+Log Messages Written
     ↓
-Save to recognition_results/
+Log Files in logs/ directory
 ```
+
+**Logging Features:**
+
+- **File logging**: Detailed logs with timestamps, module name, level, filename, line number
+- **Console logging**: Simple format for real-time monitoring
+- **Auto-rotation**: New log file each day (date in filename)
+- **Fallback**: If file logging fails, falls back to temp directory or console only
+- **PyInstaller support**: Works in both development and executable modes
 
 ---
 
@@ -649,15 +841,18 @@ Save to recognition_results/
 
 **LBPH Threshold:**
 
-- **Entry**: 76 (slightly higher to reduce false positives)
-- **Exit**: 75 (slightly lower for easier recognition)
-- **Reason**: Entry needs stricter verification
+- **Single threshold**: 76 (used for all recognition)
+- **Logic**: Lower confidence = better match (LBPH specific)
+- **Decision**:
+  - If confidence > 76 → "Unknown" (displayed in red)
+  - If confidence ≤ 76 → Recognized (displayed in green with person name)
 
-**Threshold Logic:**
+**Confidence Values:**
 
-- Lower confidence = better match (LBPH specific)
-- If confidence > threshold → "Unknown"
-- If confidence ≤ threshold → Recognized
+- **Typical range**: 0-100+ (lower is better)
+- **Good match**: < 50
+- **Acceptable match**: 50-76
+- **Poor match**: > 76 (rejected as "Unknown")
 
 ### Computational Complexity
 
@@ -748,24 +943,64 @@ Save to recognition_results/
 
 ### Camera Configuration
 
-- **Camera 0**: Entry camera (default webcam)
-- **Camera 1**: Exit camera (USB camera)
+The system supports both local webcams and IP cameras through a flexible configuration system:
+
+**Configuration File**: `config/camera_settings.json` (auto-generated)
+
+**Camera Sources:**
+
+- **Local Webcam**: Integer index (0, 1, 2, etc.)
+  - Default: 0 (first webcam)
+  - Configured via `config/camera_config.py`
+- **IP Camera**: URL string
+  - HTTP/MJPEG: `http://192.168.1.100:8080/video`
+  - RTSP: `rtsp://192.168.1.100:8086/h264_pcm.sdp`
+  - Configured via GUI or `setup_ip_camera.py`
+
+**Camera Features:**
+
+- **Buffer size**: Set to 1 for IP cameras (reduces latency)
 - **Resolution**: Determined by camera
 - **Frame Rate**: ~30 FPS (typical)
+- **Configuration**: Persistent across sessions via JSON file
+
+**IP Camera Setup:**
+
+- Use `setup_ip_camera.py` helper script
+- Or configure via GUI: "Configure IP" button in main window
+- Supports HTTP/MJPEG and RTSP protocols
 
 ### Image Specifications
 
 - **Format**: JPEG (.jpg)
 - **Size**: 100×100 pixels (after processing)
-- **Color**: Grayscale
+- **Color**: Grayscale (converted from BGR if color)
 - **Quality**: Standardized through normalization
+- **Collection**: 10 images per person
+- **Processing**: Histogram equalization applied for contrast enhancement
 
 ### Data Storage
 
-- **Format**: CSV (Comma-Separated Values)
-- **Encoding**: UTF-8
-- **Structure**: Name, Date, Time, Mask (for entry)
-- **Naming**: `Record_{name}-{date}_{time}.csv`
+**Training Images:**
+
+- **Location**: `members/{person_name}/`
+- **Naming**: `1.jpg`, `2.jpg`, ..., `10.jpg`
+- **Format**: JPEG, 100×100 pixels, grayscale
+
+**Configuration:**
+
+- **Location**: `config/camera_settings.json`
+- **Format**: JSON
+- **Content**: Camera source (integer index or URL string)
+
+**Log Files:**
+
+- **Location**: `logs/`
+- **Naming**: `{module_name}_{YYYYMMDD}.log`
+- **Format**: Text file with detailed logging information
+- **Modules**: `collect_images`, `train_models`, `face_recognition`, `main_window`
+
+**Note**: The current implementation does not save attendance records to CSV files. Recognition is performed in real-time and displayed on the video feed only.
 
 ---
 
@@ -773,17 +1008,27 @@ Save to recognition_results/
 
 ### Data Privacy
 
-- Images stored locally only
-- No cloud upload
-- No external database
+- Images stored locally only (in `members/` directory)
+- No cloud upload or external services
+- No network transmission of face data (except IP camera stream if configured)
 - User controls all data
+- Log files contain only system information, not face images
 
 ### Limitations
 
 - No encryption of stored images
-- CSV files are plain text
+- Log files are plain text
 - No access control built-in
+- Camera configuration stored in plain JSON
 - Suitable for controlled environments
+- IP camera URLs may contain credentials (if using RTSP with authentication)
+
+### Best Practices
+
+- Store `members/` directory in a secure location
+- Restrict access to log files
+- Use secure IP camera connections (HTTPS/RTSP with authentication)
+- Regularly clean up old log files
 
 ---
 
@@ -791,29 +1036,47 @@ Save to recognition_results/
 
 ### Potential Enhancements
 
-1. **Deep Learning**: Use CNN-based face recognition
-2. **Database Integration**: Store data in SQL database
-3. **Encryption**: Encrypt stored images and data
-4. **Multi-angle Support**: Handle profile views
-5. **Real-time Alerts**: Notifications for unknown faces
-6. **Analytics Dashboard**: Visualize recognition trends
-7. **Mobile App Integration**: Remote monitoring
-8. **Cloud Backup**: Optional cloud storage
+1. **Deep Learning**: Use CNN-based face recognition (e.g., FaceNet, ArcFace)
+2. **Database Integration**: Store recognition records in SQL database
+3. **Encryption**: Encrypt stored images and configuration files
+4. **Multi-angle Support**: Handle profile views and pose variations
+5. **Real-time Alerts**: Notifications for unknown faces or mask violations
+6. **Analytics Dashboard**: Visualize recognition trends and statistics
+7. **Mobile App Integration**: Remote monitoring and configuration
+8. **Cloud Backup**: Optional cloud storage for training data
+9. **Attendance Logging**: Re-implement CSV-based attendance tracking
+10. **Multi-camera Support**: Support for multiple simultaneous camera feeds
+11. **Face Registration via Image Upload**: Allow adding faces from image files
+12. **Model Persistence**: Save trained models to disk for faster startup
+13. **Web Interface**: Browser-based GUI for remote access
+14. **API Integration**: REST API for integration with other systems
 
 ---
 
 ## Conclusion
 
-This system demonstrates a practical application of computer vision techniques for face recognition and mask detection. By combining multiple face recognition algorithms (EigenFace, FisherFace, LBPH) with Haar Cascade detection, the system achieves robust performance in real-world scenarios. The use of LBPH as the primary recognition method provides the best balance of accuracy, speed, and robustness.
+This system demonstrates a practical application of computer vision techniques for face recognition and mask detection. The system uses three face recognition algorithms (EigenFace, FisherFace, LBPH) for training, but employs LBPH exclusively for real-time recognition due to its superior robustness to lighting and pose variations. Combined with Haar Cascade detection for both faces and masks, the system achieves reliable performance in real-world scenarios.
 
-The modular architecture allows for easy maintenance and extension, while the GUI-based interface makes it accessible to non-technical users. The system serves as an excellent example of applying machine learning and computer vision to solve real-world problems.
+The modular architecture allows for easy maintenance and extension, while the GUI-based interface (built with Tkinter) makes it accessible to non-technical users. The system supports both local webcams and IP cameras through a flexible configuration system, and includes comprehensive logging for debugging and monitoring. The system serves as an excellent example of applying machine learning and computer vision to solve real-world problems.
+
+**Key Strengths:**
+
+- Robust face recognition using LBPH algorithm
+- Real-time mask detection
+- Flexible camera configuration (local or IP)
+- Comprehensive logging system
+- User-friendly GUI interface
+- Modular, maintainable codebase
 
 ---
 
 **For VIVA Preparation:**
 
 - Understand the mathematical foundations of each algorithm
-- Be able to explain why LBPH is preferred
+- Be able to explain why LBPH is preferred for recognition
 - Know the preprocessing steps and their purposes
 - Understand the trade-offs between different algorithms
 - Be prepared to discuss limitations and improvements
+- Understand the module architecture and data flow
+- Know the camera configuration system
+- Understand the logging system and its benefits

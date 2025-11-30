@@ -20,7 +20,7 @@ John Doe is a new student who needs to be registered in the system. You need to 
 
 ### What Happens
 
-1. **You launch the application** from `main_window.py` and click **"01 Enter New Student"**
+1. **You launch the application** from `main_window.py` and click **"01 Enter New Person"**
 
 2. **The system prompts you** to enter the student's name:
 
@@ -39,7 +39,7 @@ John Doe is a new student who needs to be registered in the system. You need to 
    - Detects John's face in real-time using Haar Cascade classifier
    - Waits 700 milliseconds between each capture (to get varied angles/expressions)
    - For each image:
-     - Crops the face region
+     - Crops the face region (removes 20% from width edges)
      - Converts to grayscale
      - Applies histogram equalization (improves contrast)
      - Resizes to 100x100 pixels (standard size)
@@ -108,142 +108,64 @@ Now that John's images are collected, you need to train the system to recognize 
 
 ### Scenario
 
-It's Monday morning, 9:00 AM. John arrives at the institute and walks through the entry gate. Later, at 5:00 PM, he leaves through the exit gate.
+It's Monday morning, 9:00 AM. John arrives at the institute and the system needs to recognize him in real-time.
 
-### Entry Process (9:00 AM)
+### Recognition Process
 
 1. **You click "03 Face Recognition & Mask Detection"** from the main menu
 
-2. **Two camera windows open**:
+2. **A camera window opens**:
 
-   - **Entry Cam** (Camera 0): Monitors the entrance
-   - **Exit Cam** (Camera 1): Monitors the exit
+   - Uses the configured camera (local webcam or IP camera)
+   - Shows live video feed with real-time recognition
 
-3. **John approaches the entry gate**:
+3. **John approaches the camera**:
 
-   - The Entry Cam detects his face
-   - The system also checks if he's wearing a mask
+   - The camera detects his face
+   - The system also checks if he's wearing a mask (always active)
 
 4. **Face Recognition Process**:
 
-   - Detects John's face in the video frame
-   - Crops and normalizes the face (same process as Step 1)
+   - Detects John's face in the video frame using Haar Cascade
+   - Crops and normalizes the face (removes 30% from width edges, grayscale, histogram equalization, resize to 100×100)
    - Runs the face through the trained LBPH model
    - Gets a prediction: "john doe" with confidence score
 
 5. **Mask Detection**:
 
-   - Uses `xml/mask_cascade.xml` to detect if John is wearing a mask
+   - Uses `resources/xml/mask_cascade.xml` to detect if John is wearing a mask
    - Draws a green box around the mask if detected
-   - Sets `mask_detected = True` or `False`
+   - Displays "Using Mask" text below the mask
+   - Mask detection runs continuously (not just at entry)
 
 6. **Recognition Result**:
 
    - If confidence is below threshold (76): **Recognized as "John Doe"**
    - If confidence is above threshold: **Shows "Unknown"**
 
-7. **Recognition Record Created**:
+7. **Visual Feedback**:
+   - Green rectangle around John's face (if recognized)
+   - Text overlay: "John Doe" (in green) or "Unknown" (in red)
+   - Green box around mask with "Using Mask" text (if mask detected)
+   - "ESC to exit" instruction at bottom of screen
 
-   ```
-   Name: john doe
-   Date: 2024-01-15
-   Time: 09:00:00
-   Mask: True
-   ```
-
-   - Saved to: `records_in/Record_john doe-2024-01-15_09-00-00.csv`
-
-8. **Visual Feedback**:
-   - Green rectangle around John's face
-   - Text overlay: "John Doe" (in green)
-   - Mask indicator: "Using Mask" (if detected)
-
-### Exit Process (5:00 PM)
-
-1. **John approaches the exit gate**:
-
-   - The Exit Cam detects his face
-   - Same recognition process runs
-
-2. **Exit Recognition Record Created**:
-
-   ```
-   Name: john doe
-   Date: 2024-01-15
-   Time: 17:00:00
-   ```
-
-   - Saved to: `records_out/Record_john doe-2024-01-15_17-00-00.csv`
-   - Note: Exit records don't include mask status
-
-3. **Visual Feedback**: Same as entry (green box, name label)
-
-4. **You press ESC** to stop the system when done
+8. **You press ESC** to stop the system when done
 
 ### Behind the Scenes
 
-- **Dual Camera Processing**: System processes both cameras simultaneously
+- **Single Camera Processing**: System processes one camera feed (local webcam or IP camera)
 - **Real-Time Detection**: Continuously analyzes video frames (30 FPS)
-- **LBPH Algorithm**: Used for recognition (most robust to lighting/angle changes)
+- **LBPH Algorithm**: Only algorithm used for recognition (most robust to lighting/angle changes)
 - **Threshold Logic**: Lower confidence = better match (LBPH specific)
-- **CSV Storage**: Each recognition event creates a separate CSV file
+- **Multiple Face Support**: Can detect and recognize multiple faces simultaneously
+- **Mask Detection**: Always active, independent of face recognition
+- **Note**: Recognition results are displayed visually but not saved to files in current implementation
 
 ---
 
-## Step 4: Consolidating Recognition Records (consolidate_records.py)
-
-### Scenario
-
-At the end of the day, you want to see a complete report of who came in, when they left, and how long they stayed.
-
-### What Happens
-
-1. **You click "04 Save Recognition File"** from the main menu
-
-2. **The system scans** the recognition directories:
-
-   - Reads all CSV files from `records_in/` (entry records)
-   - Reads all CSV files from `records_out/` (exit records)
-
-3. **The system finds John's records**:
-
-   - Entry: `Record_john doe-2024-01-15_09-00-00.csv`
-   - Exit: `Record_john doe-2024-01-15_17-00-00.csv`
-
-4. **The system merges the records**:
-
-   - Matches entry and exit records by name
-   - Combines them into a single row
-
-5. **The system calculates engagement time**:
-
-   - Entry time: 09:00:00
-   - Exit time: 17:00:00
-   - Difference: 8 hours = 480 minutes
-
-6. **Final consolidated record**:
-
-   ```
-   Name: john doe
-   DateIn: 2024-01-15
-   TimeIn: 09:00:00
-   Mask: True
-   DateOut: 2024-01-15
-   TimeOut: 17:00:00
-   Engage-Min: 480
-   Engage-Hrs: 8.00
-   ```
-
-7. **Report saved** to: `recognition_results/Recognition_Result_2024-01-15.csv`
-
-### Behind the Scenes
-
-- **File Reading**: Uses `glob` to find all CSV files
-- **Data Merging**: Uses pandas `merge()` function (left join on 'Name')
-- **Time Calculation**: Converts time strings to datetime, calculates difference
-- **Consolidation**: All students' records are combined into one report
-
 ---
+
+**Note**: The current implementation focuses on real-time recognition and visual display. Recognition results are shown on the video feed but are not automatically saved to CSV files. This allows for real-time monitoring and verification without file I/O overhead.
 
 ## 🔄 Complete Workflow Summary
 
@@ -256,17 +178,14 @@ At the end of the day, you want to see a complete report of who came in, when th
 ┌─────────────────────────────────────────────────────────────┐
 │ 2. TRAIN MODELS                                             │
 │    └─> Load all images → Train 3 algorithms → Ready!      │
+│    Note: Only LBPH is used for recognition                 │
 └─────────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────────┐
 │ 3. DETECT & RECOGNIZE (Real-time)                           │
-│    Entry: Detect face → Recognize → Save entry record        │
-│    Exit:  Detect face → Recognize → Save exit record          │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│ 4. CONSOLIDATE                                               │
-│    └─> Merge entry + exit → Calculate time → Final report  │
+│    Detect face → Recognize (LBPH) → Display result         │
+│    Mask detection runs simultaneously                       │
+│    Visual feedback on video feed                            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -303,34 +222,38 @@ At the end of the day, you want to see a complete report of who came in, when th
 
 - Uses a separate Haar Cascade classifier (`resources/xml/mask_cascade.xml`)
 - Detects if a person is wearing a face mask
-- Only tracked at entry (not exit)
+- Always active (runs continuously, not just at entry)
+- Visual indicator: Green box around mask with "Using Mask" text
 
 ### Camera System
 
-- **Camera 0**: Default webcam for recognition tracking
-- Tracks when people arrive + mask status
-- Real-time face recognition and logging
+- **Single Camera**: Local webcam (default index 0) or IP camera
+- **IP Camera Support**: HTTP/MJPEG or RTSP streams
+- **Configuration**: Set via GUI or `config/camera_settings.json`
+- Real-time face recognition and mask detection
+- Can detect and recognize multiple faces simultaneously
 
 ---
 
 ## 📊 Data Flow
 
 ```
-Video Frame
+Video Frame (Webcam or IP Camera)
+    ↓
+Mask Detection (Haar Cascade) - Always Active
     ↓
 Face Detection (Haar Cascade)
     ↓
-Face Crop & Normalize
+Face Crop & Normalize (30% edge removal, grayscale, histogram equalization, resize)
     ↓
 Face Recognition (LBPH Model)
     ↓
-Confidence Check
+Confidence Check (threshold = 76)
     ↓
-[If Recognized] → Save to CSV
-    ↓
-Consolidate All Records
-    ↓
-Final Report
+Display Result on Video Feed
+    - Green box + name (if recognized)
+    - Red "Unknown" (if confidence > threshold)
+    - Green box around mask (if detected)
 ```
 
 ---
@@ -339,45 +262,47 @@ Final Report
 
 ### Image Processing Pipeline
 
-1. **Capture**: Get frame from webcam
+1. **Capture**: Get frame from webcam or IP camera
 2. **Detect**: Find face coordinates using Haar Cascade
-3. **Crop**: Extract face region (remove 30% from edges)
+3. **Crop**: Extract face region (remove 30% from width edges for recognition, 20% for collection)
 4. **Normalize**: Convert to grayscale + histogram equalization
 5. **Resize**: Scale to 100x100 pixels
-6. **Recognize**: Compare with trained models
-7. **Result**: Get person name + confidence score
+6. **Recognize**: Compare with trained LBPH model
+7. **Result**: Get person name + confidence score, display on video feed
 
 ### File Structure
 
 ```
 FaceRecognition-And-MaskDetection/
+├── main_window.py              # Main GUI application
+├── setup_ip_camera.py         # IP camera configuration helper
 ├── src/                        # Source code modules
-│   ├── collect_images.py
-│   ├── train_models.py
-│   ├── face_recognition.py
-│   └── consolidate_records.py
+│   ├── collect_images.py      # Image collection
+│   ├── train_models.py         # Model training
+│   ├── face_recognition.py     # Real-time recognition
+│   ├── logger_setup.py        # Logging configuration
+│   └── gui_messages.py        # GUI message helpers
+├── config/                     # Configuration
+│   ├── camera_config.py       # Camera source configuration
+│   └── camera_settings.json   # Camera settings (auto-generated)
 ├── resources/                  # Static resources
 │   ├── xml/
-│   │   ├── frontal_face.xml
-│   │   └── mask_cascade.xml
+│   │   ├── frontal_face.xml   # Face detection classifier
+│   │   └── mask_cascade.xml   # Mask detection classifier
 │   └── images/
-├── members/                    # Runtime data (created automatically)
-│   ├── john doe/
-│   │   ├── 1.jpg
-│   │   ├── 2.jpg
-│   │   └── ... (10 images)
-│   └── jane smith/
-│       └── ...
-├── records_in/
-│   └── Record_john doe-2024-01-15_09-00-00.csv
-├── records_out/
-│   └── Record_john doe-2024-01-15_17-00-00.csv
-├── recognition_results/
-│   └── Recognition_Result_2024-01-15.csv
-└── resources/
-    └── xml/
-        ├── frontal_face.xml (face detection)
-        └── mask_cascade.xml (mask detection)
+│       └── img.jpg            # GUI background (optional)
+├── logs/                       # Log files (auto-generated)
+│   ├── collect_images_YYYYMMDD.log
+│   ├── train_models_YYYYMMDD.log
+│   ├── face_recognition_YYYYMMDD.log
+│   └── main_window_YYYYMMDD.log
+└── members/                    # Training data (auto-generated)
+    ├── john doe/
+    │   ├── 1.jpg
+    │   ├── 2.jpg
+    │   └── ... (10 images)
+    └── jane smith/
+        └── ...
 ```
 
 ---
@@ -402,17 +327,17 @@ FaceRecognition-And-MaskDetection/
 
 - A: Yes! The system can detect and recognize multiple faces simultaneously.
 
-**Q: What happens if someone enters but doesn't exit?**
-
-- A: The consolidation will show their entry time but no exit time (engagement time = 0).
-
 **Q: How accurate is the recognition?**
 
 - A: Depends on lighting, angle, and training quality. LBPH is typically 85-95% accurate.
 
-**Q: Can I use just one camera?**
+**Q: Can I use an IP camera?**
 
-- A: Yes, but you'll need to modify the code to use only one camera index.
+- A: Yes! The system supports IP cameras via HTTP/MJPEG or RTSP streams. Configure it using the GUI or `setup_ip_camera.py` script.
+
+**Q: Are recognition results saved to files?**
+
+- A: Currently, recognition results are displayed visually on the video feed but not automatically saved to CSV files. This allows for real-time monitoring without file I/O overhead.
 
 ---
 
@@ -421,7 +346,8 @@ FaceRecognition-And-MaskDetection/
 - **Haar Cascade**: Machine learning-based object detection
 - **LBPH**: Local Binary Patterns Histograms for face recognition
 - **OpenCV**: Computer vision library used throughout
-- **Pandas**: Data manipulation for recognition records
+- **Tkinter**: GUI framework for the main interface
+- **Python Logging**: Centralized logging system
 
 ---
 
