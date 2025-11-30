@@ -17,20 +17,20 @@
 
 ### Purpose
 
-The Face Recognition & Mask Detection System is an automated attendance management solution that combines computer vision techniques to identify individuals and detect face mask usage in real-time.
+The Face Recognition & Mask Detection System is an automated solution that combines computer vision techniques to identify individuals and detect face mask usage in real-time.
 
 ### Core Components
 
 1. **Image Collection Module**: Captures and preprocesses face images
 2. **Model Training Module**: Trains multiple face recognition algorithms
 3. **Recognition Module**: Real-time face recognition and mask detection
-4. **Attendance Management Module**: Consolidates and processes attendance records
+4. **Data Management Module**: Consolidates and processes recognition records
 
 ### Technology Stack
 
 - **OpenCV**: Computer vision library for image processing and face recognition
 - **NumPy**: Numerical computations and array operations
-- **Pandas**: Data manipulation for attendance records
+- **Pandas**: Data manipulation for recognition records
 - **Tkinter**: Graphical user interface
 - **Matplotlib**: Image visualization (for debugging)
 
@@ -472,7 +472,7 @@ maxSize = (150, 150)    # Upper limit for mask size
 - Mask detection runs alongside face detection
 - Only tracked at entry (not exit)
 - Visual indicator: Green box around detected mask
-- Status saved in attendance records
+- Status saved in recognition records
 
 ---
 
@@ -499,7 +499,7 @@ maxSize = (150, 150)    # Upper limit for mask size
     │          │              │
     ▼          ▼              ▼
 ┌────────────────────────────────────┐
-│   src/consolidate_attendance.py     │
+│   src/consolidate_records.py        │
 └────────────────────────────────────┘
 ```
 
@@ -517,7 +517,7 @@ FaceRecognition-And-MaskDetection/
 │   ├── collect_images.py
 │   ├── train_models.py
 │   ├── face_recognition.py
-│   ├── consolidate_attendance.py
+│   ├── consolidate_records.py
 │   └── gui_messages.py
 ├── resources/                  # Static resources
 │   ├── xml/
@@ -534,12 +534,12 @@ FaceRecognition-And-MaskDetection/
     ├── members/
     │   └── person_name/
     │       └── 1.jpg, 2.jpg, ..., 10.jpg
-    ├── attendance_in/
-    │   └── Attendance_person-date_time.csv
-    ├── attendance_out/
-    │   └── Attendance_person-date_time.csv
-    └── attendance_results/
-        └── Attendance_Result_date.csv
+    ├── records_in/
+    │   └── Record_person-date_time.csv
+    ├── records_out/
+    │   └── Record_person-date_time.csv
+    └── recognition_results/
+        └── Recognition_Result_date.csv
 ```
 
 ---
@@ -602,12 +602,12 @@ LBPH Recognition
     ↓
 Confidence Check
     ↓
-[If Recognized] → Save Attendance
+[If Recognized] → Save Record
     ↓
 Display Result on Frame
 ```
 
-### 4. Attendance Consolidation Pipeline
+### 4. Data Consolidation Pipeline
 
 ```
 Load CSV Files
@@ -622,7 +622,7 @@ Calculate Time Difference
     ↓
 Generate Report
     ↓
-Save to attendance_results/
+Save to recognition_results/
 ```
 
 ---
@@ -765,7 +765,7 @@ Save to attendance_results/
 - **Format**: CSV (Comma-Separated Values)
 - **Encoding**: UTF-8
 - **Structure**: Name, Date, Time, Mask (for entry)
-- **Naming**: `Attendance_{name}-{date}_{time}.csv`
+- **Naming**: `Record_{name}-{date}_{time}.csv`
 
 ---
 
@@ -796,7 +796,7 @@ Save to attendance_results/
 3. **Encryption**: Encrypt stored images and data
 4. **Multi-angle Support**: Handle profile views
 5. **Real-time Alerts**: Notifications for unknown faces
-6. **Analytics Dashboard**: Visualize attendance trends
+6. **Analytics Dashboard**: Visualize recognition trends
 7. **Mobile App Integration**: Remote monitoring
 8. **Cloud Backup**: Optional cloud storage
 
@@ -804,7 +804,7 @@ Save to attendance_results/
 
 ## Conclusion
 
-This system demonstrates a practical application of computer vision techniques for attendance management. By combining multiple face recognition algorithms (EigenFace, FisherFace, LBPH) with Haar Cascade detection, the system achieves robust performance in real-world scenarios. The use of LBPH as the primary recognition method provides the best balance of accuracy, speed, and robustness.
+This system demonstrates a practical application of computer vision techniques for face recognition and mask detection. By combining multiple face recognition algorithms (EigenFace, FisherFace, LBPH) with Haar Cascade detection, the system achieves robust performance in real-world scenarios. The use of LBPH as the primary recognition method provides the best balance of accuracy, speed, and robustness.
 
 The modular architecture allows for easy maintenance and extension, while the GUI-based interface makes it accessible to non-technical users. The system serves as an excellent example of applying machine learning and computer vision to solve real-world problems.
 

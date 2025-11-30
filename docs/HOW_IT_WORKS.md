@@ -2,13 +2,13 @@
 
 ## 📖 Overview
 
-This document explains how the Face Recognition & Mask Detection system works through a real-world scenario. Follow along as we track a student named "John Doe" through the entire attendance process.
+This document explains how the Face Recognition & Mask Detection system works through a real-world scenario. Follow along as we track a student named "John Doe" through the entire recognition process.
 
 ---
 
-## 🎬 Scenario: Tracking John Doe's Attendance
+## 🎬 Scenario: Tracking John Doe's Recognition
 
-Let's imagine you're an administrator at an educational institute, and you need to track attendance for a student named **John Doe** using face recognition and mask detection.
+Let's imagine you're an administrator at an educational institute, and you need to track recognition for a student named **John Doe** using face recognition and mask detection.
 
 ---
 
@@ -104,7 +104,7 @@ Now that John's images are collected, you need to train the system to recognize 
 
 ---
 
-## Step 3: Real-Time Attendance Tracking (face_recognition.py)
+## Step 3: Real-Time Recognition Tracking (face_recognition.py)
 
 ### Scenario
 
@@ -112,7 +112,7 @@ It's Monday morning, 9:00 AM. John arrives at the institute and walks through th
 
 ### Entry Process (9:00 AM)
 
-1. **You click "03 Face Attendance & Mask Detection"** from the main menu
+1. **You click "03 Face Recognition & Mask Detection"** from the main menu
 
 2. **Two camera windows open**:
 
@@ -142,7 +142,7 @@ It's Monday morning, 9:00 AM. John arrives at the institute and walks through th
    - If confidence is below threshold (76): **Recognized as "John Doe"**
    - If confidence is above threshold: **Shows "Unknown"**
 
-7. **Attendance Record Created**:
+7. **Recognition Record Created**:
 
    ```
    Name: john doe
@@ -151,7 +151,7 @@ It's Monday morning, 9:00 AM. John arrives at the institute and walks through th
    Mask: True
    ```
 
-   - Saved to: `attendance_in/Attendance_john doe-2024-01-15_09-00-00.csv`
+   - Saved to: `records_in/Record_john doe-2024-01-15_09-00-00.csv`
 
 8. **Visual Feedback**:
    - Green rectangle around John's face
@@ -165,7 +165,7 @@ It's Monday morning, 9:00 AM. John arrives at the institute and walks through th
    - The Exit Cam detects his face
    - Same recognition process runs
 
-2. **Exit Attendance Record Created**:
+2. **Exit Recognition Record Created**:
 
    ```
    Name: john doe
@@ -173,7 +173,7 @@ It's Monday morning, 9:00 AM. John arrives at the institute and walks through th
    Time: 17:00:00
    ```
 
-   - Saved to: `attendance_out/Attendance_john doe-2024-01-15_17-00-00.csv`
+   - Saved to: `records_out/Record_john doe-2024-01-15_17-00-00.csv`
    - Note: Exit records don't include mask status
 
 3. **Visual Feedback**: Same as entry (green box, name label)
@@ -190,7 +190,7 @@ It's Monday morning, 9:00 AM. John arrives at the institute and walks through th
 
 ---
 
-## Step 4: Consolidating Attendance Records (consolidate_attendance.py)
+## Step 4: Consolidating Recognition Records (consolidate_records.py)
 
 ### Scenario
 
@@ -198,17 +198,17 @@ At the end of the day, you want to see a complete report of who came in, when th
 
 ### What Happens
 
-1. **You click "04 Save Face Attendance File"** from the main menu
+1. **You click "04 Save Recognition File"** from the main menu
 
-2. **The system scans** the attendance directories:
+2. **The system scans** the recognition directories:
 
-   - Reads all CSV files from `attendance_in/` (entry records)
-   - Reads all CSV files from `attendance_out/` (exit records)
+   - Reads all CSV files from `records_in/` (entry records)
+   - Reads all CSV files from `records_out/` (exit records)
 
 3. **The system finds John's records**:
 
-   - Entry: `Attendance_john doe-2024-01-15_09-00-00.csv`
-   - Exit: `Attendance_john doe-2024-01-15_17-00-00.csv`
+   - Entry: `Record_john doe-2024-01-15_09-00-00.csv`
+   - Exit: `Record_john doe-2024-01-15_17-00-00.csv`
 
 4. **The system merges the records**:
 
@@ -234,7 +234,7 @@ At the end of the day, you want to see a complete report of who came in, when th
    Engage-Hrs: 8.00
    ```
 
-7. **Report saved** to: `attendance_results/Attendance_Result_2024-01-15.csv`
+7. **Report saved** to: `recognition_results/Recognition_Result_2024-01-15.csv`
 
 ### Behind the Scenes
 
@@ -307,9 +307,9 @@ At the end of the day, you want to see a complete report of who came in, when th
 
 ### Camera System
 
-- **Camera 0**: Default webcam for attendance tracking
+- **Camera 0**: Default webcam for recognition tracking
 - Tracks when people arrive + mask status
-- Real-time face recognition and attendance logging
+- Real-time face recognition and logging
 
 ---
 
@@ -355,7 +355,7 @@ FaceRecognition-And-MaskDetection/
 │   ├── collect_images.py
 │   ├── train_models.py
 │   ├── face_recognition.py
-│   └── consolidate_attendance.py
+│   └── consolidate_records.py
 ├── resources/                  # Static resources
 │   ├── xml/
 │   │   ├── frontal_face.xml
@@ -368,12 +368,12 @@ FaceRecognition-And-MaskDetection/
 │   │   └── ... (10 images)
 │   └── jane smith/
 │       └── ...
-├── attendance_in/
-│   └── Attendance_john doe-2024-01-15_09-00-00.csv
-├── attendance_out/
-│   └── Attendance_john doe-2024-01-15_17-00-00.csv
-├── attendance_results/
-│   └── Attendance_Result_2024-01-15.csv
+├── records_in/
+│   └── Record_john doe-2024-01-15_09-00-00.csv
+├── records_out/
+│   └── Record_john doe-2024-01-15_17-00-00.csv
+├── recognition_results/
+│   └── Recognition_Result_2024-01-15.csv
 └── resources/
     └── xml/
         ├── frontal_face.xml (face detection)
@@ -421,8 +421,8 @@ FaceRecognition-And-MaskDetection/
 - **Haar Cascade**: Machine learning-based object detection
 - **LBPH**: Local Binary Patterns Histograms for face recognition
 - **OpenCV**: Computer vision library used throughout
-- **Pandas**: Data manipulation for attendance records
+- **Pandas**: Data manipulation for recognition records
 
 ---
 
-_This system provides an automated, contactless attendance tracking solution perfect for educational institutes, offices, or any facility requiring attendance monitoring._
+_This system provides an automated, contactless face recognition and mask detection solution perfect for educational institutes, offices, or any facility requiring identity verification and mask monitoring._
